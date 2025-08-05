@@ -27,6 +27,24 @@
         let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
         let editingTransactionId = null;
 
+        // Modals and FABs
+        const addTransactionFab = document.getElementById('add-transaction-fab');
+        const addTransactionModal = document.getElementById('add-transaction-modal');
+        const closeTransactionModalBtn = document.getElementById('close-transaction-modal');
+        const transactionModalTitle = document.getElementById('transaction-modal-title');
+
+        const dataManagementFab = document.getElementById('data-management-fab');
+        const dataManagementModal = document.getElementById('data-management-modal');
+        const closeDataManagementModalBtn = document.getElementById('close-data-management-modal');
+
+        // API Key Management elements
+        const toggleApiKeyFormBtn = document.getElementById('toggle-api-key-form');
+        const apiKeyFormContainer = document.getElementById('api-key-form-container');
+        const geminiApiKeyInput = document.getElementById('gemini-api-key-input');
+        const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+        let userProvidedApiKey = localStorage.getItem('geminiApiKey') || ""; // Retrieve saved key on load
+
+
         const transactionForm = document.getElementById('transaction-form');
         const assetTypeSelect = document.getElementById('asset-type');
         const currencySelect = document.getElementById('currency');
@@ -59,6 +77,41 @@
         const today = new Date().toISOString().split('T')[0];
         transactionDateInput.value = today;
 
+        // Function to get the 3rd Friday of the next month
+        const getThirdFridayOfNextMonth = () => {
+            const now = new Date();
+            let year = now.getFullYear();
+            let month = now.getMonth() + 1; // Next month (0-indexed, so +1 for actual month number)
+
+            if (month > 11) { // If current month is December, next month is January of next year
+                month = 0; // January
+                year++;
+            }
+
+            let firstDayOfNextMonth = new Date(year, month, 1);
+            let fridayCount = 0;
+            let day = 1;
+            let thirdFriday = null;
+
+            // Loop through days of the month to find the 3rd Friday
+            while (fridayCount < 3) {
+                const currentDate = new Date(year, month, day);
+                if (currentDate.getDay() === 5) { // Friday is day 5 (0 for Sunday, 1 for Monday, etc.)
+                    fridayCount++;
+                    if (fridayCount === 3) {
+                        thirdFriday = currentDate;
+                    }
+                }
+                day++;
+            }
+
+            return thirdFriday.toISOString().split('T')[0];
+        };
+
+        // Set default expiry date for options
+        const optionExpiryInput = document.getElementById('option-expiry');
+        optionExpiryInput.value = getThirdFridayOfNextMonth();
+
         const setDefaultFees = () => {
             const assetType = assetTypeSelect.value;
             const currency = currencySelect.value;
@@ -72,7 +125,7 @@
                 } else if (currency === 'CHF') {
                     fee = 3.02;
                 } else if (currency === 'USD') {
-                    fee = 202;
+                    fee = 2.02; // Corrected USD option fee
                 }
             }
 
@@ -90,6 +143,10 @@
             } else {
                 stockFields.classList.add('hidden');
                 optionFields.classList.remove('hidden');
+                // Set underlying asset price to strike price by default for options
+                document.getElementById('option-underlying').value = document.getElementById('option-strike').value;
+                // Set default expiry date for options
+                optionExpiryInput.value = getThirdFridayOfNextMonth();
             }
             setDefaultFees();
         };
@@ -97,6 +154,13 @@
         assetTypeSelect.addEventListener('change', toggleFields);
         currencySelect.addEventListener('change', setDefaultFees);
         window.addEventListener('load', toggleFields);
+
+        // Update underlying asset price when strike price changes
+        document.getElementById('option-strike').addEventListener('input', () => {
+            if (assetTypeSelect.value !== 'Stock') {
+                document.getElementById('option-underlying').value = document.getElementById('option-strike').value;
+            }
+        });
 
         const saveTransactions = () => {
             localStorage.setItem('transactions', JSON.stringify(transactions));
@@ -142,26 +206,26 @@
                 if (action === 'Buy') {
                     if (assetType === 'Call Option') {
                         maxProfit = Infinity;
-                    } else {
+                    } else { // Put Option
                         maxProfit = (strikePrice - premium) * quantity * 100 - (fees * quantity);
                     }
-                } else {
+                } else { // Sell
                     maxProfit = (premium * quantity * 100) - (fees * quantity);
                 }
                 let maxLoss = 0;
                 if (action === 'Buy') {
                     maxLoss = -((premium * quantity * 100) + (fees * quantity));
-                } else {
+                } else { // Sell
                     if (assetType === 'Call Option') {
                         maxLoss = -Infinity;
-                    } else {
+                    } else { // Put Option
                         maxLoss = -((strikePrice - premium) * quantity * 100 + (fees * quantity));
                     }
                 }
                 let breakEven = 0;
                 if (assetType === 'Call Option') {
                     breakEven = strikePrice + premium;
-                } else {
+                } else { // Put Option
                     breakEven = strikePrice - premium;
                 }
                 return { maxProfit, maxLoss: maxLoss, breakEven };
@@ -187,14 +251,27 @@
                 } else {
                     assetTypeClass = 'text-logo-red bg-red-100';
                 }
+
+                // Determine the distinguishing price information
+                let priceInfo = '';
+                if (t.assetType === 'Stock') {
+                    priceInfo = `Price: ${t.transactionPrice} ${t.currency}`;
+                } else {
+                    priceInfo = `Strike: ${t.strikePrice} ${t.currency} | Prem: ${t.premium} ${t.currency}`;
+                }
                 
                 const transactionItem = document.createElement('div');
                 transactionItem.className = 'bg-neutral-card p-4 rounded-lg shadow-subtle space-y-4 cursor-pointer';
                 transactionItem.innerHTML = `
                     <div class="flex items-center justify-between" data-id="${t.id}" data-action="toggle-details">
-                        <div class="flex items-center">
-                            <span class="text-xl font-bold text-neutral-text">${t.symbol}</span>
-                            <span class="ml-4 px-3 py-1 rounded-full text-xs font-semibold ${assetTypeClass}">${t.assetType} - ${t.action}</span>
+                        <div class="flex flex-col">
+                            <div class="flex items-center">
+                                <span class="text-xl font-bold text-neutral-text">${t.symbol}</span>
+                                <span class="ml-4 px-3 py-1 rounded-full text-xs font-semibold ${assetTypeClass}">${t.assetType} - ${t.action}</span>
+                            </div>
+                            <div class="text-sm text-gray-500 mt-1">
+                                 <span>Qty: ${t.quantity}</span> | <span>${priceInfo}</span> | <span>${t.transactionDate}</span> 
+                            </div>
                         </div>
                         <div class="flex items-center text-gray-500">
                             <svg data-id="${t.id}" data-action="toggle-details" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform transition-transform" viewBox="0 0 20 20" fill="currentColor">
@@ -264,6 +341,65 @@
             }
         };
 
+        // Event listener for Add Transaction FAB
+        addTransactionFab.addEventListener('click', () => {
+            editingTransactionId = null;
+            transactionForm.reset();
+            transactionDateInput.value = today;
+            optionExpiryInput.value = getThirdFridayOfNextMonth(); // Set default expiry for new transaction
+            document.getElementById('submit-btn').textContent = 'Add Transaction';
+            document.getElementById('cancel-btn').classList.add('hidden');
+            transactionModalTitle.textContent = 'Add New Transaction';
+            toggleFields(); // Ensure correct fields are shown and fees are set
+            addTransactionModal.classList.remove('hidden');
+            addTransactionModal.classList.add('flex');
+        });
+
+        // Event listener for closing Add Transaction Modal
+        closeTransactionModalBtn.addEventListener('click', () => {
+            addTransactionModal.classList.add('hidden');
+            addTransactionModal.classList.remove('flex');
+        });
+
+        // Event listener for Data Management FAB
+        dataManagementFab.addEventListener('click', () => {
+            dataManagementModal.classList.remove('hidden');
+            dataManagementModal.classList.add('flex');
+            // Populate API key input when modal opens
+            geminiApiKeyInput.value = localStorage.getItem('geminiApiKey') || "";
+        });
+
+        // Event listener for closing Data Management Modal
+        closeDataManagementModalBtn.addEventListener('click', () => {
+            dataManagementModal.classList.add('hidden');
+            dataManagementModal.classList.remove('flex');
+            // Hide API key form when closing data management modal
+            apiKeyFormContainer.classList.add('hidden');
+            toggleApiKeyFormBtn.querySelector('svg').style.transform = 'rotate(0deg)';
+        });
+
+        // Toggle API Key Form visibility
+        toggleApiKeyFormBtn.addEventListener('click', () => {
+            apiKeyFormContainer.classList.toggle('hidden');
+            const icon = toggleApiKeyFormBtn.querySelector('svg');
+            if (apiKeyFormContainer.classList.contains('hidden')) {
+                icon.style.transform = 'rotate(0deg)';
+            } else {
+                icon.style.transform = 'rotate(-90deg)';
+            }
+        });
+
+        // Save API Key
+        saveApiKeyBtn.addEventListener('click', () => {
+            const key = geminiApiKeyInput.value.trim();
+            localStorage.setItem('geminiApiKey', key);
+            userProvidedApiKey = key; // Update the global variable
+            showToast('API Key saved successfully!');
+            apiKeyFormContainer.classList.add('hidden'); // Hide form after saving
+            toggleApiKeyFormBtn.querySelector('svg').style.transform = 'rotate(0deg)';
+        });
+
+
         transactionForm.addEventListener('submit', (e) => {
             e.preventDefault();
 
@@ -290,6 +426,7 @@
             } else {
                 newTransaction.strikePrice = parseFloat(document.getElementById('option-strike').value);
                 newTransaction.premium = parseFloat(document.getElementById('option-premium').value);
+                // Set underlying asset price to strike price if not explicitly set
                 newTransaction.underlyingAssetPrice = parseFloat(document.getElementById('option-underlying').value) || newTransaction.strikePrice;
                 newTransaction.expiryDate = document.getElementById('option-expiry').value;
                 newTransaction.fees = parseFloat(document.getElementById('option-fees').value);
@@ -301,8 +438,6 @@
                     transactions[index] = newTransaction;
                 }
                 editingTransactionId = null;
-                document.getElementById('submit-btn').textContent = 'Add Transaction';
-                document.getElementById('cancel-btn').classList.add('hidden');
                 showToast('Transaction updated successfully!');
             } else {
                 transactions.push(newTransaction);
@@ -312,6 +447,9 @@
             saveTransactions();
             transactionForm.reset();
             transactionDateInput.value = today;
+            optionExpiryInput.value = getThirdFridayOfNextMonth(); // Reset expiry for next new transaction
+            addTransactionModal.classList.add('hidden'); // Hide modal after save
+            addTransactionModal.classList.remove('flex');
             renderTransactionList();
         });
 
@@ -333,6 +471,7 @@
                 }
             } else if (target.classList.contains('edit-btn')) {
                 editingTransactionId = id;
+                transactionModalTitle.textContent = 'Edit Transaction';
                 document.getElementById('submit-btn').textContent = 'Save Changes';
                 document.getElementById('cancel-btn').classList.remove('hidden');
 
@@ -353,7 +492,9 @@
                     document.getElementById('option-expiry').value = transaction.expiryDate;
                     document.getElementById('option-fees').value = transaction.fees;
                 }
-                toggleFields();
+                toggleFields(); // Ensure correct fields are shown and fees are set
+                addTransactionModal.classList.remove('hidden'); // Show the modal for editing
+                addTransactionModal.classList.add('flex');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             } else if (target.classList.contains('delete-btn')) {
                 transactionToDeleteId = id;
@@ -383,11 +524,9 @@
 
         closePnlModalBtn.addEventListener('click', () => {
             pnlSimulationModal.classList.add('hidden');
-            pnlSimulationModal.classList.remove('flex');
         });
         closeStrategyModalBtn.addEventListener('click', () => {
             strategySimulationModal.classList.add('hidden');
-            strategySimulationModal.classList.remove('flex');
         });
 
         confirmDeleteBtn.addEventListener('click', () => {
@@ -409,8 +548,11 @@
             editingTransactionId = null;
             transactionForm.reset();
             transactionDateInput.value = today;
+            optionExpiryInput.value = getThirdFridayOfNextMonth();
             document.getElementById('submit-btn').textContent = 'Add Transaction';
             document.getElementById('cancel-btn').classList.add('hidden');
+            addTransactionModal.classList.add('hidden'); // Hide modal on cancel
+            addTransactionModal.classList.remove('flex');
         });
 
         document.getElementById('export-btn').addEventListener('click', () => {
@@ -883,7 +1025,8 @@
                 let chatHistory = [];
                 chatHistory.push({ role: "user", parts: [{ text: prompt }] });
                 const payload = { contents: chatHistory };
-                const apiKey = "" 
+                // Use user-provided API key if available, otherwise default to empty string for Canvas injection
+                const apiKey = userProvidedApiKey; 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
                 
                 const response = await fetch(apiUrl, {
