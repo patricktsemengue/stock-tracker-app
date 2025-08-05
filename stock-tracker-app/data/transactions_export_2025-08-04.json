@@ -1,0 +1,58 @@
+[
+  {
+    "id": "1754321585045",
+    "assetType": "Put Option",
+    "action": "Buy",
+    "symbol": "STMI",
+    "quantity": 20,
+    "transactionDate": "2025-08-04",
+    "currency": "EUR",
+    "strikePrice": 17,
+    "premium": 0.1,
+    "underlyingAssetPrice": 22,
+    "expiryDate": "2025-08-14",
+    "fees": 0.75
+  },
+  {
+    "id": "1754321685459",
+    "assetType": "Put Option",
+    "action": "Buy",
+    "symbol": "STMI",
+    "quantity": 10,
+    "transactionDate": "2025-08-04",
+    "currency": "EUR",
+    "strikePrice": 19,
+    "premium": 0.12,
+    "underlyingAssetPrice": 19,
+    "expiryDate": "2025-08-15",
+    "fees": 0.75
+  },
+  {
+    "id": 1754322244293,
+    "assetType": "Put Option",
+    "action": "Sell",
+    "symbol": "NTLA",
+    "quantity": 30,
+    "transactionDate": "2025-08-04",
+    "currency": "USD",
+    "strikePrice": 7,
+    "premium": 1,
+    "underlyingAssetPrice": 7,
+    "expiryDate": "2025-10-15",
+    "fees": 2.05
+  },
+  {
+    "id": 1754322294154,
+    "assetType": "Call Option",
+    "action": "Buy",
+    "symbol": "STMI",
+    "quantity": 20,
+    "transactionDate": "2025-08-04",
+    "currency": "EUR",
+    "strikePrice": 20,
+    "premium": 0.5,
+    "underlyingAssetPrice": 20,
+    "expiryDate": "2025-08-14",
+    "fees": 0.75
+  }
+]

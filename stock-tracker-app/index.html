@@ -3,82 +3,315 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Tracker</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Strady: Strategy Builder</title>
+    <!-- Favicon -->
+    <link rel="icon" href="./files/strady_icon.jpg" type="image/jpeg">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for P&L charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Chart.js Annotation Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <!-- Chart.js Zoom Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'logo-bg': '#f7f4ec',
+              'logo-primary': '#2a5a54', // Dark teal from "Strady"
+              'logo-green': '#6d9f82', // Light green from icon
+              'logo-red': '#ef4444', // Red from arrow
+              'logo-blue': '#3b82f6', // Blue from bars
+              'logo-text-secondary': '#666', // Dark gray from subtitle
+            },
+            boxShadow: {
+              'subtle': '0 1px 3px rgba(0,0,0,0.08)',
+              'lg-subtle': '0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05)',
+            }
+          }
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="./strady.css">
 </head>
-<body>
+<body class="p-4">
+    <main class="container mx-auto max-w-7xl space-y-12">
+        <!-- Title & Logo Section -->
+        <header class="text-left my-12 flex items-center space-x-4">
+            <img src="./files/logo-4ec1bb63-5616-432e-9955-2d15e8fc6fc3.jpeg" alt="Strady Logo" class="h-32">
+            <!--div>
+                <h1 class="text-4xl lg:text-5xl section-header text-logo-primary">Strady</h1>
+                <p class="mt-2 text-lg text-logo-text-secondary">by TheCornseed.com</p>
+            </div-->
+        </header>
 
-    <header>
-        <h1>Stock Tracker</h1>
-    </header>
+        <!-- Main Content Area: Multi-column layout on larger screens -->
+        <div class="lg:grid lg:grid-cols-3 lg:gap-8">
+            <!-- Left Column: Add Transaction Form -->
+            <section id="add-transaction-section" class="lg:col-span-1 mb-8 lg:mb-0 card">
+                <h2 class="text-xl section-header text-neutral-text mb-6">Add Transaction</h2>
+                <form id="transaction-form" class="space-y-4">
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="w-full">
+                            <label for="asset-type" class="block text-sm font-medium text-gray-600 mb-1">Asset Type</label>
+                            <select id="asset-type" class="input-field">
+                                <option value="Stock">Stock</option>
+                                <option value="Call Option">Call Option</option>
+                                <option value="Put Option">Put Option</option>
+                            </select>
+                        </div>
+                        <div class="w-full">
+                            <label for="action" class="block text-sm font-medium text-gray-600 mb-1">Action</label>
+                            <select id="action" class="input-field">
+                                <option value="Buy">Buy</option>
+                                <option value="Sell">Sell</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="w-full">
+                            <label for="symbol" class="block text-sm font-medium text-gray-600 mb-1">Symbol</label>
+                            <input type="text" id="symbol" class="input-field" required>
+                        </div>
+                        <div class="w-full">
+                            <label for="quantity" class="block text-sm font-medium text-gray-600 mb-1">Quantity</label>
+                            <input type="number" id="quantity" class="input-field" required>
+                        </div>
+                    </div>
 
-    <main>
-        <div id="transaction-form-container" class="hidden">
-            <form id="transaction-form">
-                <h2>Add New Transaction</h2>
-                <input type="hidden" id="transaction-id">
+                    <div id="stock-fields" class="space-y-4">
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <div class="w-full">
+                                <label for="stock-price" class="block text-sm font-medium text-gray-600 mb-1">Transaction Price</label>
+                                <input type="number" id="stock-price" step="0.01" class="input-field">
+                            </div>
+                            <div class="w-full">
+                                <label for="stock-fees" class="block text-sm font-medium text-gray-600 mb-1">Fees per Unit</label>
+                                <input type="number" id="stock-fees" step="0.01" value="0.00" class="input-field">
+                            </div>
+                        </div>
+                    </div>
 
-                <label for="stock-symbol">Stock Symbol:</label>
-                <input type="text" id="stock-symbol" required>
+                    <div id="option-fields" class="hidden space-y-4">
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <div class="w-full">
+                                <label for="option-strike" class="block text-sm font-medium text-gray-600 mb-1">Strike Price</label>
+                                <input type="number" id="option-strike" step="0.01" class="input-field">
+                            </div>
+                            <div class="w-full">
+                                <label for="option-premium" class="block text-sm font-medium text-gray-600 mb-1">Premium</label>
+                                <input type="number" id="option-premium" step="0.01" class="input-field">
+                            </div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <div class="w-full">
+                                <label for="option-underlying" class="block text-sm font-medium text-gray-600 mb-1">Underlying Asset Price</label>
+                                <input type="number" id="option-underlying" step="0.01" class="input-field">
+                            </div>
+                            <div class="w-full">
+                                <label for="option-expiry" class="block text-sm font-medium text-gray-600 mb-1">Expiry Date</label>
+                            <input type="date" id="option-expiry" class="input-field">
+                            </div>
+                        </div>
+                        <div class="w-full">
+                            <label for="option-fees" class="block text-sm font-medium text-gray-600 mb-1">Fees per Contract</label>
+                            <input type="number" id="option-fees" step="0.01" value="0.00" class="input-field">
+                        </div>
+                    </div>
 
-                <label for="product">Product:</label>
-                <select id="product" required>
-                    <option value="Stock">Stock</option>
-                    <option value="Call">Call</option>
-                    <option value="Put">Put</option>
-                </select>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="w-full">
+                            <label for="transaction-date" class="block text-sm font-medium text-gray-600 mb-1">Transaction Date</label>
+                            <input type="date" id="transaction-date" class="input-field">
+                        </div>
+                        <div class="w-full">
+                            <label for="currency" class="block text-sm font-medium text-gray-600 mb-1">Currency</label>
+                            <select id="currency" class="input-field">
+                                <option value="EUR">EUR</option>
+                                <option value="USD">USD</option>
+                                <option value="CHF">CHF</option>
+                            </select>
+                        </div>
+                    </div>
 
-                <label for="action">Action:</label>
-                <select id="action" required>
-                    <option value="Buy">Buy</option>
-                    <option value="Sell">Sell</option>
-                </select>
+                    <div class="flex justify-end gap-2 mt-6">
+                        <button type="button" id="cancel-btn" class="hidden bg-gray-200 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-300 transition-colors text-base font-bold">
+                            Cancel
+                        </button>
+                        <button type="submit" id="submit-btn" class="bg-logo-primary text-white px-6 py-3 rounded-full shadow-lg hover:bg-opacity-80 transition-colors text-base font-bold">
+                            Add Transaction
+                        </button>
+                    </div>
+                </form>
+            </section>
 
-                <div id="option-fields" class="hidden">
-                    <label for="premium">Premium:</label>
-                    <input type="number" id="premium" min="0.01" step="0.01">
+            <!-- Right Column: Transactions & Data Management -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- Transaction List Section -->
+                <section class="card">
+                    <h2 class="text-xl section-header text-neutral-text mb-6">My Transactions</h2>
+                    <div id="transaction-list" class="space-y-4">
+                        <!-- Transaction items will be dynamically inserted here -->
+                    </div>
+                    <div id="strategy-btn-container" class="mt-6 hidden">
+                        <button id="strategy-btn" class="w-full bg-logo-green text-white px-6 py-3 rounded-full shadow-lg hover:bg-opacity-80 transition-colors text-base font-bold">
+                            Simulate Strategy
+                        </button>
+                    </div>
+                </section>
 
-                    <label for="expiry-date">Expiry Date:</label>
-                    <input type="date" id="expiry-date">
+                <!-- Data Import/Export Section -->
+                <section class="card">
+                    <h2 class="text-xl section-header text-neutral-text mb-6">Data Management</h2>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="w-full">
+                            <input type="file" id="import-file" class="hidden" accept=".json">
+                            <button id="import-btn" class="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-300 transition-colors text-base font-bold">
+                                Import Transactions
+                            </button>
+                        </div>
+                        <div class="w-full">
+                            <button id="export-btn" class="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-300 transition-colors text-base font-bold">
+                                Export Transactions
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+        
+        <!-- P&L Simulation Modal -->
+        <div id="pnl-simulation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
+            <div class="bg-white p-6 rounded-lg w-full max-w-4xl shadow-2xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold">P&L Simulation</h2>
+                    <button id="close-pnl-modal" class="text-gray-500 hover:text-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="pnl-charts-container" class="space-y-8">
+                    <!-- Charts will be dynamically added here -->
+                </div>
+                 <div class="flex justify-end mt-4">
+                    <div class="flex space-x-2 mr-4">
+                        <button id="zoom-in-pnl-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm font-bold flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </button>
+                        <button id="zoom-out-pnl-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm font-bold flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Strategy Simulation Modal -->
+        <div id="strategy-simulation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
+             <div class="bg-white p-6 rounded-lg w-full max-w-4xl shadow-2xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold">Strategy Simulation</h2>
+                    <button id="close-strategy-modal" class="text-gray-500 hover:text-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="flex flex-col md:flex-row md:space-x-4 mb-4">
+                    <div class="w-full md:w-1/2 mb-4 md:mb-0">
+                        <label for="strategy-symbol" class="block text-sm font-medium text-gray-600 mb-1">Select Symbol</label>
+                        <select id="strategy-symbol" class="input-field"></select>
+                    </div>
+                    <div class="w-full md:w-1/2">
+                        <label for="strategy-price" class="block text-sm font-medium text-gray-600 mb-1">Relevant Price</label>
+                        <input type="number" id="strategy-price" step="0.01" class="input-field">
+                    </div>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                    <canvas id="strategy-chart" class="w-full h-[400px]"></canvas>
+                </div>
+                <div class="flex justify-end mt-4 gap-2">
+                    <div class="flex space-x-2 mr-4">
+                        <button id="zoom-in-strategy-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm font-bold flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </button>
+                        <button id="zoom-out-strategy-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm font-bold flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
-                <label for="quantity">Quantity:</label>
-                <input type="number" id="quantity" required min="1">
-
-                <label for="price-per-unit">Price per Unit:</label>
-                <input type="number" id="price-per-unit" required min="0.01" step="0.01">
-
-                <label for="fees-per-unit">Fees per Unit:</label>
-                <input type="number" id="fees-per-unit" required min="0" step="0.01">
-
-                <label for="currency">Currency:</label>
-                <select id="currency" required>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                </select>
-
-                <div class="form-actions">
-                    <button type="submit" id="save-button">Save Transaction</button>
-                    <button type="button" id="cancel-button">Cancel</button>
+                <div class="bg-white p-4 rounded-lg shadow-sm my-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-gray-500 font-bold">Max Profit:</span>
+                        <span id="strategy-max-profit" class="font-bold">--</span>
+                    </div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-gray-500 font-bold">Max Loss:</span>
+                        <span id="strategy-max-loss" class="font-bold">--</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500 font-bold">Breakeven Range:</span>
+                        <span id="strategy-breakeven-range" class="font-bold">--</span>
+                    </div>
                 </div>
-            </form>
+
+                <div class="mt-8 pt-4 border-t border-gray-200">
+                    <h3 class="text-xl font-bold text-gray-700 mb-4">Strategy Analysis ✨</h3>
+                    <div class="flex justify-between items-center mb-4">
+                        <p id="analyze-strategy-status" class="text-gray-500 italic"></p>
+                        <button id="analyze-strategy-btn" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-300 transition-colors text-base font-bold">
+                            ✨ Analyze
+                        </button>
+                    </div>
+                    <div id="strategy-analysis-result" class="bg-gray-100 p-4 rounded-lg text-gray-800">
+                        <p>Click "Analyze" to get a detailed explanation of your combined positions.</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div id="transaction-list-container">
-            <div class="actions">
-                <button id="add-transaction-button">Add Transaction</button>
-                <button id="import-button">Import</button>
-                <button id="export-button">Export</button>
-            </div>
-            
-            <input type="file" id="file-input" accept=".json,.csv" class="hidden">
 
-            <ul id="transactions-list">
-                </ul>
+        <!-- Message Box for alerts -->
+        <div id="message-box" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
+            <div class="bg-white p-6 rounded-lg shadow-2xl max-w-sm w-full">
+                <h3 class="text-xl font-bold mb-2">Message</h3>
+                <p id="message-text" class="text-gray-700 mb-4"></p>
+                <div class="flex justify-end">
+                    <button id="message-ok-btn" class="bg-logo-primary text-white px-4 py-2 rounded-full hover:bg-opacity-80">OK</button>
+                </div>
+            </div>
+        </div>
+        <!-- Confirmation pop-up -->
+        <div id="toast" class="toast-message hidden">
+            Transaction saved successfully!
+        </div>
+        <!-- Delete Confirmation Modal -->
+        <div id="delete-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
+            <div class="bg-white p-6 rounded-lg shadow-2xl max-w-sm w-full">
+                <h3 class="text-xl font-bold mb-2">Confirm Deletion</h3>
+                <p id="delete-message" class="text-gray-700 mb-4">Are you sure you want to delete this transaction?</p>
+                <div class="flex justify-end gap-2">
+                    <button id="cancel-delete-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300">Cancel</button>
+                    <button id="confirm-delete-btn" class="bg-logo-red text-white px-4 py-2 rounded-full hover:bg-red-600">Delete</button>
+                </div>
+            </div>
         </div>
     </main>
 
-    <script src="app.js"></script>
+<script src="./app.js"></script>
 </body>
 </html>

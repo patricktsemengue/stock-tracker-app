@@ -1,325 +1,923 @@
-// Get references to all the necessary HTML elements
-const formContainer = document.getElementById('transaction-form-container');
-const form = document.getElementById('transaction-form');
-const transactionsList = document.getElementById('transactions-list');
-const addTransactionButton = document.getElementById('add-transaction-button');
-const cancelButton = document.getElementById('cancel-button');
-const importButton = document.getElementById('import-button');
-const exportButton = document.getElementById('export-button');
-const fileInput = document.getElementById('file-input');
-const optionFieldsContainer = document.getElementById('option-fields'); // NEW
+        // --- Custom helper functions for UI ---
+        const showMessageBox = (message) => {
+            const messageBox = document.getElementById('message-box');
+            document.getElementById('message-text').textContent = message;
+            messageBox.classList.remove('hidden');
+            messageBox.classList.add('flex');
+        };
 
-// Get references to the form inputs
-const transactionIdInput = document.getElementById('transaction-id');
-const stockSymbolInput = document.getElementById('stock-symbol');
-const productInput = document.getElementById('product');
-const actionInput = document.getElementById('action');
-const premiumInput = document.getElementById('premium');     // NEW
-const expiryDateInput = document.getElementById('expiry-date'); // NEW
-const quantityInput = document.getElementById('quantity');
-const pricePerUnitInput = document.getElementById('price-per-unit');
-const feesPerUnitInput = document.getElementById('fees-per-unit');
-const currencyInput = document.getElementById('currency');
+        document.getElementById('message-ok-btn').addEventListener('click', () => {
+            const messageBox = document.getElementById('message-box');
+            messageBox.classList.add('hidden');
+            messageBox.classList.remove('flex');
+        });
 
-// Global array to store all our transactions
-let transactions = [];
-
-/**
- * Saves the current transactions array to localStorage.
- */
-function saveTransactions() {
-    localStorage.setItem('transactions', JSON.stringify(transactions));
-}
-
-/**
- * Loads transactions from localStorage.
- */
-function loadTransactions() {
-    const storedTransactions = localStorage.getItem('transactions');
-    if (storedTransactions) {
-        transactions = JSON.parse(storedTransactions);
-    } else {
-        transactions = [];
-    }
-}
-
-/**
- * Renders the transactions array onto the page.
- */
-function renderTransactions() {
-    transactionsList.innerHTML = '';
-
-    transactions.forEach(transaction => {
-        const listItem = document.createElement('li');
-        listItem.className = 'transaction-item';
-
-        const totalValue = (transaction.quantity * transaction.pricePerUnit).toFixed(2);
-        const fees = (transaction.quantity * transaction.feesPerUnit).toFixed(2);
-        const netValue = (totalValue - fees).toFixed(2);
-
-        // CONDITIONAL rendering for options data
-        let optionDetails = '';
-        if (transaction.product === 'Call' || transaction.product === 'Put') {
-            const premiumDisplay = transaction.premium ? `(Premium: ${transaction.premium})` : '';
-            const expiryDisplay = transaction.expiryDate ? `(Expires: ${transaction.expiryDate})` : '';
-            optionDetails = `<p class="option-info">${premiumDisplay} ${expiryDisplay}</p>`;
-        }
+        const showToast = (message) => {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.remove('hidden');
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.classList.add('hidden');
+            }, 3000);
+        };
         
-        listItem.innerHTML = `
-            <div class="transaction-details">
-                <h3>${transaction.symbol.toUpperCase()} - ${transaction.product} (${transaction.action})</h3>
-                <p>Quantity: ${transaction.quantity} @ ${transaction.pricePerUnit} ${transaction.currency}</p>
-                ${optionDetails}
-                <p>Total Value: ${totalValue} ${transaction.currency} (Fees: ${fees} | Net: ${netValue})</p>
-            </div>
-            <div class="transaction-actions">
-                <button class="edit-button" data-id="${transaction.id}">Edit</button>
-                <button class="delete-button" data-id="${transaction.id}">Delete</button>
-            </div>
-        `;
+        // --- Core Application Logic ---
+        let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+        let editingTransactionId = null;
 
-        transactionsList.appendChild(listItem);
-    });
-}
+        const transactionForm = document.getElementById('transaction-form');
+        const assetTypeSelect = document.getElementById('asset-type');
+        const currencySelect = document.getElementById('currency');
+        const transactionListDiv = document.getElementById('transaction-list');
+        const stockFields = document.getElementById('stock-fields');
+        const optionFields = document.getElementById('option-fields');
+        const stockFeesInput = document.getElementById('stock-fees');
+        const optionFeesInput = document.getElementById('option-fees');
+        
+        const pnlSimulationModal = document.getElementById('pnl-simulation-modal');
+        const closePnlModalBtn = document.getElementById('close-pnl-modal');
+        const pnlChartsContainer = document.getElementById('pnl-charts-container');
+        
+        const strategySimulationModal = document.getElementById('strategy-simulation-modal');
+        const closeStrategyModalBtn = document.getElementById('close-strategy-modal');
+        const strategySymbolSelect = document.getElementById('strategy-symbol');
+        const strategyPriceInput = document.getElementById('strategy-price');
+        const strategyBtnContainer = document.getElementById('strategy-btn-container');
 
-/**
- * Handles the form submission for both adding and editing transactions.
- * @param {Event} event The form submission event.
- */
-function handleFormSubmit(event) {
-    event.preventDefault();
-    const product = productInput.value;
+        const transactionDateInput = document.getElementById('transaction-date');
+        const strategyMaxProfitSpan = document.getElementById('strategy-max-profit');
+        const strategyMaxLossSpan = document.getElementById('strategy-max-loss');
+        const strategyBreakevenRangeSpan = document.getElementById('strategy-breakeven-range');
 
-    const transaction = {
-        id: transactionIdInput.value || crypto.randomUUID(),
-        symbol: stockSymbolInput.value.toUpperCase(),
-        product: product,
-        action: actionInput.value,
-        quantity: parseFloat(quantityInput.value),
-        pricePerUnit: parseFloat(pricePerUnitInput.value),
-        feesPerUnit: parseFloat(feesPerUnitInput.value),
-        currency: currencyInput.value
-    };
+        const deleteModal = document.getElementById('delete-modal');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+        let transactionToDeleteId = null;
 
-    // CONDITIONAL data saving for options
-    if (product === 'Call' || product === 'Put') {
-        transaction.premium = parseFloat(premiumInput.value);
-        transaction.expiryDate = expiryDateInput.value;
-    }
+        const today = new Date().toISOString().split('T')[0];
+        transactionDateInput.value = today;
 
-    if (transactionIdInput.value) {
-        const index = transactions.findIndex(t => t.id === transaction.id);
-        if (index !== -1) {
-            transactions[index] = transaction;
-        }
-    } else {
-        transactions.unshift(transaction);
-    }
+        const setDefaultFees = () => {
+            const assetType = assetTypeSelect.value;
+            const currency = currencySelect.value;
+            let fee = 0;
 
-    saveTransactions();
-    renderTransactions();
-    formContainer.classList.add('hidden');
-}
-
-/**
- * Handles clicks on the "Edit" button using event delegation.
- * @param {Event} event The click event.
- */
-function handleEditClick(event) {
-    if (event.target.classList.contains('edit-button')) {
-        const transactionId = event.target.dataset.id;
-        const transactionToEdit = transactions.find(t => t.id === transactionId);
-
-        if (transactionToEdit) {
-            transactionIdInput.value = transactionToEdit.id;
-            stockSymbolInput.value = transactionToEdit.symbol;
-            productInput.value = transactionToEdit.product;
-            actionInput.value = transactionToEdit.action;
-            quantityInput.value = transactionToEdit.quantity;
-            pricePerUnitInput.value = transactionToEdit.pricePerUnit;
-            feesPerUnitInput.value = transactionToEdit.feesPerUnit;
-            currencyInput.value = transactionToEdit.currency;
-
-            // CONDITIONAL data loading for options
-            if (transactionToEdit.product === 'Call' || transactionToEdit.product === 'Put') {
-                premiumInput.value = transactionToEdit.premium;
-                expiryDateInput.value = transactionToEdit.expiryDate;
+            if (assetType === 'Stock') {
+                fee = currency === 'EUR' ? 0.02 : 0.00;
             } else {
-                // Clear fields if the transaction is not an option
-                premiumInput.value = '';
-                expiryDateInput.value = '';
+                if (currency === 'EUR') {
+                    fee = 0.75;
+                } else if (currency === 'CHF') {
+                    fee = 3.02;
+                } else if (currency === 'USD') {
+                    fee = 202;
+                }
             }
 
-            document.querySelector('#transaction-form h2').textContent = 'Edit Transaction';
-            formContainer.classList.remove('hidden');
-            toggleOptionFields(); // NEW: Call function to show/hide fields
-        }
-    }
-}
+            if (assetType === 'Stock') {
+                stockFeesInput.value = fee.toFixed(2);
+            } else {
+                optionFeesInput.value = fee.toFixed(2);
+            }
+        };
 
-/**
- * Toggles the visibility of the premium and expiry date fields.
- */
-function toggleOptionFields() {
-    const product = productInput.value;
-    if (product === 'Call' || product === 'Put') {
-        optionFieldsContainer.classList.remove('hidden');
-        premiumInput.required = true;
-        expiryDateInput.required = true;
-    } else {
-        optionFieldsContainer.classList.add('hidden');
-        premiumInput.required = false;
-        expiryDateInput.required = false;
-        // Also clear the values just in case
-        premiumInput.value = '';
-        expiryDateInput.value = '';
-    }
-}
+        const toggleFields = () => {
+            if (assetTypeSelect.value === 'Stock') {
+                stockFields.classList.remove('hidden');
+                optionFields.classList.add('hidden');
+            } else {
+                stockFields.classList.add('hidden');
+                optionFields.classList.remove('hidden');
+            }
+            setDefaultFees();
+        };
 
+        assetTypeSelect.addEventListener('change', toggleFields);
+        currencySelect.addEventListener('change', setDefaultFees);
+        window.addEventListener('load', toggleFields);
 
-/**
- * Handles clicks on the "Delete" button using event delegation.
- * @param {Event} event The click event.
- */
-function handleDeleteClick(event) {
-    if (event.target.classList.contains('delete-button')) {
-        const transactionId = event.target.dataset.id;
-        if (confirm('Are you sure you want to delete this transaction?')) {
-            transactions = transactions.filter(t => t.id !== transactionId);
+        const saveTransactions = () => {
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+        };
+
+        const calculateStockPNL = (price, transaction) => {
+            const { action, quantity, transactionPrice, fees } = transaction;
+            const direction = action === 'Buy' ? 1 : -1;
+            return ((price - transactionPrice) * quantity * direction) - (fees * quantity);
+        };
+
+        const calculateOptionPNL = (underlyingPrice, transaction) => {
+            const { action, quantity, strikePrice, premium, fees, assetType } = transaction;
+            const direction = action === 'Buy' ? 1 : -1;
+            let intrinsicValue = 0;
+            if (assetType === 'Call Option') {
+                intrinsicValue = Math.max(0, underlyingPrice - strikePrice);
+            } else if (assetType === 'Put Option') {
+                intrinsicValue = Math.max(0, strikePrice - underlyingPrice);
+            }
+            return ((intrinsicValue - premium) * quantity * 100 * direction) - (fees * quantity);
+        };
+
+        const calculateTransactionMetrics = (transaction) => {
+            if (transaction.assetType === 'Stock') {
+                const { action, transactionPrice, fees, quantity } = transaction;
+                const direction = action === 'Buy' ? 1 : -1;
+                const totalCost = (transactionPrice * quantity) + (fees * quantity);
+                let maxProfit = Infinity;
+                if (action === 'Sell') {
+                    maxProfit = totalCost;
+                }
+                let maxLoss = -Infinity;
+                if (action === 'Buy') {
+                    maxLoss = -totalCost;
+                }
+                let breakEven = transactionPrice + (direction * fees);
+                return { maxProfit: maxProfit, maxLoss: maxLoss, breakEven: breakEven };
+            } else {
+                const { action, assetType, strikePrice, premium, fees, quantity } = transaction;
+                const direction = action === 'Buy' ? 1 : -1;
+                let maxProfit = 0;
+                if (action === 'Buy') {
+                    if (assetType === 'Call Option') {
+                        maxProfit = Infinity;
+                    } else {
+                        maxProfit = (strikePrice - premium) * quantity * 100 - (fees * quantity);
+                    }
+                } else {
+                    maxProfit = (premium * quantity * 100) - (fees * quantity);
+                }
+                let maxLoss = 0;
+                if (action === 'Buy') {
+                    maxLoss = -((premium * quantity * 100) + (fees * quantity));
+                } else {
+                    if (assetType === 'Call Option') {
+                        maxLoss = -Infinity;
+                    } else {
+                        maxLoss = -((strikePrice - premium) * quantity * 100 + (fees * quantity));
+                    }
+                }
+                let breakEven = 0;
+                if (assetType === 'Call Option') {
+                    breakEven = strikePrice + premium;
+                } else {
+                    breakEven = strikePrice - premium;
+                }
+                return { maxProfit, maxLoss: maxLoss, breakEven };
+            }
+        };
+
+        const renderTransactionList = () => {
+            transactionListDiv.innerHTML = '';
+            const transactionCounts = {};
+
+            transactions.forEach(t => {
+                transactionCounts[t.symbol] = (transactionCounts[t.symbol] || 0) + 1;
+            });
+
+            transactions.forEach(t => {
+                const metrics = calculateTransactionMetrics(t);
+                
+                let assetTypeClass = '';
+                if (t.assetType === 'Stock') {
+                    assetTypeClass = 'text-logo-blue bg-blue-100';
+                } else if (t.assetType === 'Call Option') {
+                    assetTypeClass = 'text-logo-green bg-green-100';
+                } else {
+                    assetTypeClass = 'text-logo-red bg-red-100';
+                }
+                
+                const transactionItem = document.createElement('div');
+                transactionItem.className = 'bg-neutral-card p-4 rounded-lg shadow-subtle space-y-4 cursor-pointer';
+                transactionItem.innerHTML = `
+                    <div class="flex items-center justify-between" data-id="${t.id}" data-action="toggle-details">
+                        <div class="flex items-center">
+                            <span class="text-xl font-bold text-neutral-text">${t.symbol}</span>
+                            <span class="ml-4 px-3 py-1 rounded-full text-xs font-semibold ${assetTypeClass}">${t.assetType} - ${t.action}</span>
+                        </div>
+                        <div class="flex items-center text-gray-500">
+                            <svg data-id="${t.id}" data-action="toggle-details" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div id="details-${t.id}" class="collapsible-content">
+                        <div class="grid grid-cols-2 gap-4 text-sm text-gray-600 border-t pt-4 mt-4">
+                            <div><span class="font-bold text-neutral-text">Date:</span> ${t.transactionDate}</div>
+                            <div><span class="font-bold text-neutral-text">Quantity:</span> ${t.quantity}</div>
+                            ${t.assetType === 'Stock' ? `
+                            <div><span class="font-bold text-neutral-text">Price:</span> ${t.transactionPrice} ${t.currency}</div>
+                            <div><span class="font-bold text-neutral-text">Fees:</span> ${t.fees} ${t.currency}</div>
+                            ` : `
+                            <div><span class="font-bold text-neutral-text">Strike:</span> ${t.strikePrice} ${t.currency}</div>
+                            <div><span class="font-bold text-neutral-text">Premium:</span> ${t.premium} ${t.currency}</div>
+                            <div><span class="font-bold text-neutral-text">Expiry:</span> ${t.expiryDate}</div>
+                            <div><span class="font-bold text-neutral-text">Fees:</span> ${t.fees} ${t.currency}</div>
+                            `}
+                        </div>
+
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <h4 class="text-lg font-bold text-gray-700 mb-2">Key Metrics</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center">
+                                    <span class="text-sm text-gray-500">Max Profit</span>
+                                    <span class="font-bold text-base ${metrics.maxProfit > 0 || metrics.maxProfit === Infinity ? 'text-logo-green' : 'text-neutral-text'}">${metrics.maxProfit === Infinity ? '∞' : metrics.maxProfit.toFixed(2) + ' ' + t.currency}</span>
+                                </div>
+                                <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center">
+                                    <span class="text-sm text-gray-500">Max Loss</span>
+                                    <span class="font-bold text-base ${metrics.maxLoss < 0 || metrics.maxLoss === -Infinity ? 'text-logo-red' : 'text-neutral-text'}">${metrics.maxLoss === -Infinity ? '-∞' : metrics.maxLoss.toFixed(2) + ' ' + t.currency}</span>
+                                </div>
+                                <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center">
+                                    <span class="text-sm text-gray-500">Breakeven</span>
+                                    <span class="font-bold text-base text-neutral-text">${metrics.breakEven.toFixed(2)} ${t.currency}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 flex justify-end gap-2">
+                            <button data-id="${t.id}" class="simulate-btn bg-logo-primary text-white px-4 py-2 rounded-full shadow hover:bg-opacity-80 transition-colors text-sm font-bold">
+                                Simulate P&L
+                            </button>
+                            <button data-id="${t.id}" class="edit-btn bg-gray-200 text-gray-700 px-4 py-2 rounded-full shadow hover:bg-gray-300 transition-colors text-sm font-bold">
+                                Edit
+                            </button>
+                            <button data-id="${t.id}" class="delete-btn bg-logo-red text-white px-4 py-2 rounded-full shadow hover:bg-opacity-80 transition-colors text-sm font-bold">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+                transactionListDiv.appendChild(transactionItem);
+            });
+
+            const symbolsWithMultiple = Object.keys(transactionCounts).filter(s => transactionCounts[s] >= 2);
+            if (symbolsWithMultiple.length > 0) {
+                strategyBtnContainer.classList.remove('hidden');
+                strategySymbolSelect.innerHTML = symbolsWithMultiple.map(s => `<option value="${s}">${s}</option>`).join('');
+                if (!strategySimulationModal.classList.contains('hidden')) {
+                    updateStrategyPriceForSymbol(strategySymbolSelect.value);
+                    runStrategySimulation();
+                }
+            } else {
+                strategyBtnContainer.classList.add('hidden');
+            }
+        };
+
+        transactionForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const assetType = document.getElementById('asset-type').value;
+            const action = document.getElementById('action').value;
+            const symbol = document.getElementById('symbol').value.toUpperCase();
+            const quantity = parseFloat(document.getElementById('quantity').value);
+            const transactionDate = document.getElementById('transaction-date').value;
+            const currency = document.getElementById('currency').value;
+
+            let newTransaction = {
+                id: editingTransactionId || Date.now(),
+                assetType,
+                action,
+                symbol,
+                quantity,
+                transactionDate,
+                currency,
+            };
+
+            if (assetType === 'Stock') {
+                newTransaction.transactionPrice = parseFloat(document.getElementById('stock-price').value);
+                newTransaction.fees = parseFloat(document.getElementById('stock-fees').value);
+            } else {
+                newTransaction.strikePrice = parseFloat(document.getElementById('option-strike').value);
+                newTransaction.premium = parseFloat(document.getElementById('option-premium').value);
+                newTransaction.underlyingAssetPrice = parseFloat(document.getElementById('option-underlying').value) || newTransaction.strikePrice;
+                newTransaction.expiryDate = document.getElementById('option-expiry').value;
+                newTransaction.fees = parseFloat(document.getElementById('option-fees').value);
+            }
+
+            if (editingTransactionId) {
+                const index = transactions.findIndex(t => t.id == editingTransactionId);
+                if (index !== -1) {
+                    transactions[index] = newTransaction;
+                }
+                editingTransactionId = null;
+                document.getElementById('submit-btn').textContent = 'Add Transaction';
+                document.getElementById('cancel-btn').classList.add('hidden');
+                showToast('Transaction updated successfully!');
+            } else {
+                transactions.push(newTransaction);
+                showToast('Transaction added successfully!');
+            }
+
             saveTransactions();
-            renderTransactions();
+            transactionForm.reset();
+            transactionDateInput.value = today;
+            renderTransactionList();
+        });
+
+        transactionListDiv.addEventListener('click', (e) => {
+            const target = e.target;
+            const id = target.dataset.id;
+            const action = target.dataset.action;
+            const transaction = transactions.find(t => t.id == id);
+            
+            if (action === 'toggle-details') {
+                const details = document.getElementById(`details-${id}`);
+                const chevron = target.querySelector('svg');
+                if (details.classList.contains('expanded')) {
+                    details.classList.remove('expanded');
+                    chevron.style.transform = 'rotate(0deg)';
+                } else {
+                    details.classList.add('expanded');
+                    chevron.style.transform = 'rotate(180deg)';
+                }
+            } else if (target.classList.contains('edit-btn')) {
+                editingTransactionId = id;
+                document.getElementById('submit-btn').textContent = 'Save Changes';
+                document.getElementById('cancel-btn').classList.remove('hidden');
+
+                document.getElementById('asset-type').value = transaction.assetType;
+                document.getElementById('action').value = transaction.action;
+                document.getElementById('symbol').value = transaction.symbol;
+                document.getElementById('quantity').value = transaction.quantity;
+                document.getElementById('transaction-date').value = transaction.transactionDate;
+                document.getElementById('currency').value = transaction.currency;
+
+                if (transaction.assetType === 'Stock') {
+                    document.getElementById('stock-price').value = transaction.transactionPrice;
+                    document.getElementById('stock-fees').value = transaction.fees;
+                } else {
+                    document.getElementById('option-strike').value = transaction.strikePrice;
+                    document.getElementById('option-premium').value = transaction.premium;
+                    document.getElementById('option-underlying').value = transaction.underlyingAssetPrice;
+                    document.getElementById('option-expiry').value = transaction.expiryDate;
+                    document.getElementById('option-fees').value = transaction.fees;
+                }
+                toggleFields();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (target.classList.contains('delete-btn')) {
+                transactionToDeleteId = id;
+                deleteModal.classList.remove('hidden');
+                deleteModal.classList.add('flex');
+            } else if (target.classList.contains('simulate-btn')) {
+                pnlSimulationModal.classList.remove('hidden');
+                pnlSimulationModal.classList.add('flex');
+                pnlChartsContainer.innerHTML = '';
+                
+                const chartWrapper = document.createElement('div');
+                chartWrapper.className = 'bg-white rounded-lg p-4 mb-4 shadow-sm';
+                const canvas = document.createElement('canvas');
+                const canvasId = `pnl-chart-${id}`;
+                canvas.id = canvasId;
+                canvas.className = 'w-full h-[400px]';
+                chartWrapper.appendChild(canvas);
+                pnlChartsContainer.appendChild(chartWrapper);
+
+                const relevantPrice = transaction.assetType === 'Stock' ? transaction.transactionPrice : (transaction.underlyingAssetPrice || transaction.strikePrice);
+                const initialMinPrice = relevantPrice * 0;
+                const initialMaxPrice = relevantPrice * 2;
+                
+                simulateAndDrawChart(transaction, canvasId, initialMinPrice, initialMaxPrice, relevantPrice);
+            }
+        });
+
+        closePnlModalBtn.addEventListener('click', () => {
+            pnlSimulationModal.classList.add('hidden');
+            pnlSimulationModal.classList.remove('flex');
+        });
+        closeStrategyModalBtn.addEventListener('click', () => {
+            strategySimulationModal.classList.add('hidden');
+            strategySimulationModal.classList.remove('flex');
+        });
+
+        confirmDeleteBtn.addEventListener('click', () => {
+            transactions = transactions.filter(t => t.id != transactionToDeleteId);
+            saveTransactions();
+            renderTransactionList();
+            deleteModal.classList.add('hidden');
+            deleteModal.classList.remove('flex');
+            showToast('Transaction deleted successfully!');
+        });
+
+        cancelDeleteBtn.addEventListener('click', () => {
+            deleteModal.classList.add('hidden');
+            deleteModal.classList.remove('flex');
+            transactionToDeleteId = null;
+        });
+
+        document.getElementById('cancel-btn').addEventListener('click', () => {
+            editingTransactionId = null;
+            transactionForm.reset();
+            transactionDateInput.value = today;
+            document.getElementById('submit-btn').textContent = 'Add Transaction';
+            document.getElementById('cancel-btn').classList.add('hidden');
+        });
+
+        document.getElementById('export-btn').addEventListener('click', () => {
+            const json = JSON.stringify(transactions, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transactions_export_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Transactions exported successfully!');
+        });
+
+        document.getElementById('import-btn').addEventListener('click', () => {
+            document.getElementById('import-file').click();
+        });
+
+        document.getElementById('import-file').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) {
+                e.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const importedTransactions = JSON.parse(event.target.result);
+                    if (Array.isArray(importedTransactions)) {
+                        importedTransactions.forEach(importedTransaction => {
+                            const existingIndex = transactions.findIndex(t => t.id === importedTransaction.id);
+                            if (existingIndex !== -1) {
+                                transactions[existingIndex] = importedTransaction;
+                            } else {
+                                transactions.push(importedTransaction);
+                            }
+                        });
+                        saveTransactions();
+                        renderTransactionList();
+                        showMessageBox('Transactions imported successfully!');
+                    } else {
+                        showMessageBox('Invalid JSON file format. Please import a file containing an array of transactions.');
+                    }
+                } catch (error) {
+                    showMessageBox('Error parsing JSON file. Please ensure the file is valid.');
+                }
+                e.target.value = '';
+            };
+            reader.readAsText(file);
+        });
+
+        const chartInstances = {};
+
+        const zoomChart = (chartId, relevantPrice, zoomFactor) => {
+            const chartData = chartInstances[chartId].data;
+            const currentLabels = chartData.labels.map(l => parseFloat(l));
+            const currentMinPrice = currentLabels[0];
+            const currentMaxPrice = currentLabels[currentLabels.length - 1];
+
+            const centerPrice = relevantPrice;
+            const newMinPrice = centerPrice + (currentMinPrice - centerPrice) * zoomFactor;
+            const newMaxPrice = centerPrice + (currentMaxPrice - centerPrice) * zoomFactor;
+            
+            if (newMinPrice < 0) {
+                simulateAndDrawChart(chartInstances[chartId].transactionData, chartId, 0, newMaxPrice, relevantPrice);
+            } else {
+                simulateAndDrawChart(chartInstances[chartId].transactionData, chartId, newMinPrice, newMaxPrice, relevantPrice);
+            }
+        };
+
+        const zoomInPnlBtn = document.getElementById('zoom-in-pnl-btn');
+        if (zoomInPnlBtn) {
+            zoomInPnlBtn.addEventListener('click', () => {
+                const pnlCanvas = pnlChartsContainer.querySelector('canvas');
+                if (pnlCanvas) {
+                    const chartId = pnlCanvas.id;
+                    const transaction = chartInstances[chartId].transactionData;
+                    const relevantPrice = transaction.assetType === 'Stock' ? transaction.transactionPrice : (transaction.underlyingAssetPrice || transaction.strikePrice);
+                    zoomChart(chartId, relevantPrice, 0.9);
+                }
+            });
         }
-    }
-}
 
-/**
- * Converts transactions array to CSV format and triggers a download.
- */
-function exportToCSV() {
-    if (transactions.length === 0) {
-        alert("No transactions to export.");
-        return;
-    }
+        const zoomOutPnlBtn = document.getElementById('zoom-out-pnl-btn');
+        if (zoomOutPnlBtn) {
+            zoomOutPnlBtn.addEventListener('click', () => {
+                const pnlCanvas = pnlChartsContainer.querySelector('canvas');
+                if (pnlCanvas) {
+                    const chartId = pnlCanvas.id;
+                    const transaction = chartInstances[chartId].transactionData;
+                    const relevantPrice = transaction.assetType === 'Stock' ? transaction.transactionPrice : (transaction.underlyingAssetPrice || transaction.strikePrice);
+                    zoomChart(chartId, relevantPrice, 1.1);
+                }
+            });
+        }
 
-    // UPDATED headers to include new fields
-    const headers = ["id", "symbol", "product", "action", "premium", "expiryDate", "quantity", "pricePerUnit", "feesPerUnit", "currency"];
-    const csvContent = "data:text/csv;charset=utf-8," 
-                     + headers.join(',') + '\n'
-                     + transactions.map(t => 
-                         `${t.id},${t.symbol},${t.product},${t.action},${t.premium || ''},${t.expiryDate || ''},${t.quantity},${t.pricePerUnit},${t.feesPerUnit},${t.currency}`
-                       ).join('\n');
+        const zoomInStrategyBtn = document.getElementById('zoom-in-strategy-btn');
+        if (zoomInStrategyBtn) {
+            zoomInStrategyBtn.addEventListener('click', () => {
+                const chartId = 'strategy-chart';
+                const relevantPrice = parseFloat(document.getElementById('strategy-price').value);
+                if (!isNaN(relevantPrice) && chartInstances[chartId]) {
+                     zoomChart(chartId, relevantPrice, 0.9);
+                }
+            });
+        }
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "transactions.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
+        const zoomOutStrategyBtn = document.getElementById('zoom-out-strategy-btn');
+        if (zoomOutStrategyBtn) {
+            zoomOutStrategyBtn.addEventListener('click', () => {
+                const chartId = 'strategy-chart';
+                const relevantPrice = parseFloat(document.getElementById('strategy-price').value);
+                if (!isNaN(relevantPrice) && chartInstances[chartId]) {
+                    zoomChart(chartId, relevantPrice, 1.1);
+                }
+            });
+        }
+        
+        const simulateAndDrawChart = (transactionOrArray, canvasId, minPrice, maxPrice, relevantPrice) => {
+            const labels = [];
+            const pnlData = [];
+            const numDataPoints = 201; 
+            const priceStep = (maxPrice - minPrice) / (numDataPoints - 1);
+            let maxProfit = -Infinity;
+            let maxLoss = Infinity;
 
-/**
- * Converts transactions array to JSON format and triggers a download.
- */
-function exportToJSON() {
-    if (transactions.length === 0) {
-        alert("No transactions to export.");
-        return;
-    }
-    const jsonContent = JSON.stringify(transactions, null, 2);
-    const blob = new Blob([jsonContent], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+            for (let i = 0; i < numDataPoints; i++) {
+                const simulatedPrice = minPrice + (i * priceStep);
+                labels.push(simulatedPrice.toFixed(2));
+                let totalPnl = 0;
 
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'transactions.json';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-}
+                if (Array.isArray(transactionOrArray)) {
+                    transactionOrArray.forEach(t => {
+                        if (t.assetType === 'Stock') {
+                            totalPnl += calculateStockPNL(simulatedPrice, t);
+                        } else {
+                            totalPnl += calculateOptionPNL(simulatedPrice, t);
+                        }
+                    });
+                } else {
+                    const transaction = transactionOrArray;
+                    if (transaction.assetType === 'Stock') {
+                        totalPnl = calculateStockPNL(simulatedPrice, transaction);
+                    } else {
+                        totalPnl = calculateOptionPNL(simulatedPrice, transaction);
+                    }
+                }
+                
+                pnlData.push(totalPnl);
+                if (totalPnl > maxProfit) maxProfit = totalPnl;
+                if (totalPnl < maxLoss) maxLoss = totalPnl;
+            }
+            
+            const title = (Array.isArray(transactionOrArray)) ? `Strategy P&L for ${transactionOrArray[0].symbol}` : `${transactionOrArray.symbol} P&L`;
+            const currency = (Array.isArray(transactionOrArray)) ? transactionOrArray[0].currency : transactionOrArray.currency;
+            
+            drawChart(pnlData, labels, canvasId, title, [], maxProfit, maxLoss, relevantPrice, transactionOrArray);
+        };
 
-/**
- * Handles the import of JSON or CSV files.
- * @param {Event} event The file change event.
- */
-function handleFileImport(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+        const drawChart = (data, labels, canvasId, title, breakevenPrices, maxProfitValue, maxLossValue, relevantPrice, transactionData) => {
+            const canvas = document.getElementById(canvasId);
+            const chartInstance = chartInstances[canvasId];
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
 
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-        const content = e.target.result;
-        try {
-            let importedData = [];
-            if (file.type === 'application/json') {
-                importedData = JSON.parse(content);
-            } else if (file.type === 'text/csv') {
-                const lines = content.split('\n').slice(1); // Skip header row
-                importedData = lines.map(line => {
-                    const [id, symbol, product, action, premium, expiryDate, quantity, pricePerUnit, feesPerUnit, currency] = line.split(',');
-                    return { 
-                        id, symbol, product, action, 
-                        premium: premium ? parseFloat(premium) : undefined, 
-                        expiryDate: expiryDate || undefined, 
-                        quantity: parseFloat(quantity), 
-                        pricePerUnit: parseFloat(pricePerUnit), 
-                        feesPerUnit: parseFloat(feesPerUnit), 
-                        currency 
+            const ctx = canvas.getContext('2d');
+            const breakevenAnnotations = {};
+            if (breakevenPrices && breakevenPrices.length > 0) {
+                breakevenPrices.forEach((price, index) => {
+                    breakevenAnnotations[`breakeven${index + 1}`] = {
+                        type: 'line',
+                        xMin: parseFloat(price),
+                        xMax: parseFloat(price),
+                        borderColor: 'rgb(255, 99, 132)',
+                        borderWidth: 2,
+                        borderDash: [6, 6],
+                        label: {
+                            content: `Breakeven: ${price}`,
+                            enabled: true,
+                            position: 'start',
+                            backgroundColor: 'rgba(255, 99, 132, 0.7)'
+                        }
                     };
                 });
             }
 
-            const newTransactions = [...transactions, ...importedData];
-            const uniqueTransactions = Array.from(new Map(newTransactions.map(item => [item['id'], item])).values());
-            transactions = uniqueTransactions;
+            const maxProfitIndex = data.indexOf(maxProfitValue);
+            const maxLossIndex = data.indexOf(maxLossValue);
+            
+            const annotations = {
+                annotations: {
+                    ...breakevenAnnotations,
+                    xMedianLine: {
+                        type: 'line',
+                        xMin: relevantPrice,
+                        xMax: relevantPrice,
+                        borderColor: 'rgba(128, 128, 128, 0.5)',
+                        borderWidth: 2,
+                        borderDash: [6, 6],
+                        label: {
+                            content: `Relevant Price: ${relevantPrice}`,
+                            enabled: true,
+                            position: 'end',
+                            backgroundColor: 'rgba(128, 128, 128, 0.7)'
+                        }
+                    },
+                    maxLossLabel: {
+                         type: 'label',
+                         xValue: labels[maxLossIndex] || labels[0],
+                         yValue: maxLossValue,
+                         content: `Max Loss: ${maxLossValue === -Infinity ? '−∞' : maxLossValue.toFixed(2)}`,
+                         backgroundColor: 'rgba(248, 215, 218, 0.8)',
+                         color: 'rgb(220, 53, 69)',
+                         font: {
+                            size: 14,
+                            weight: 'bold'
+                         },
+                         position: 'top',
+                         callout: {
+                            display: true
+                         }
+                    },
+                    maxProfitLabel: {
+                        type: 'label',
+                        xValue: labels[maxProfitIndex] || labels[labels.length - 1],
+                        yValue: maxProfitValue,
+                        content: `Max Profit: ${maxProfitValue === Infinity ? '∞' : maxProfitValue.toFixed(2)}`,
+                        backgroundColor: 'rgba(212, 237, 218, 0.8)',
+                        color: 'rgb(25, 135, 84)',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        position: 'top',
+                        callout: {
+                            display: true
+                         }
+                    }
+                }
+            };
+            
+            const config = {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Profit/Loss',
+                            data: data,
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: (context) => {
+                                const chart = context.chart;
+                                const { ctx, chartArea, scales } = chart;
+                                if (!chartArea) return;
+                                const zeroY = scales.y.getPixelForValue(0);
+                                const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                                const offset = (zeroY - chartArea.top) / (chartArea.bottom - chartArea.top);
+                                gradient.addColorStop(0, '#d4edda');
+                                gradient.addColorStop(offset, '#d4edda');
+                                gradient.addColorStop(offset, '#f8d7da');
+                                gradient.addColorStop(1, '#f8d7da');
+                                return gradient;
+                            },
+                            fill: 'origin',
+                            tension: 0.4,
+                            pointRadius: 0,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: title,
+                            font: { size: 16 }
+                        },
+                        annotation: annotations,
+                        zoom: {
+                            pan: {
+                                enabled: true,
+                                mode: 'xy'
+                            },
+                            zoom: {
+                                wheel: {
+                                    enabled: true
+                                },
+                                pinch: {
+                                    enabled: true
+                                },
+                                mode: 'xy'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Price'
+                            },
+                            ticks: {
+                                maxTicksLimit: 10,
+                                callback: function(val, index) {
+                                    const value = this.getLabelForValue(val);
+                                    return value !== '' ? parseFloat(value).toFixed(2) : '';
+                                }
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Profit/Loss'
+                            },
+                            beginAtZero: true
+                        }
+                    },
+                },
+            };
+            chartInstances[canvasId] = new Chart(ctx, config);
+            chartInstances[canvasId].transactionData = transactionData;
+        };
+        
+        const runStrategySimulation = () => {
+            const symbol = strategySymbolSelect.value;
+            const relevantPrice = parseFloat(strategyPriceInput.value);
 
-            saveTransactions();
-            renderTransactions();
-            alert(`Successfully imported ${importedData.length} transactions.`);
-        } catch (error) {
-            alert("Error parsing file. Please ensure the file is valid JSON or CSV format.");
-            console.error("File import error:", error);
+            if (!symbol || isNaN(relevantPrice)) {
+                return;
+            }
+
+            const transactionsForSymbol = transactions.filter(t => t.symbol === symbol);
+            
+            const initialMinPrice = relevantPrice * 0;
+            const initialMaxPrice = relevantPrice * 2;
+            
+            simulateAndDrawChart(transactionsForSymbol, 'strategy-chart', initialMinPrice, initialMaxPrice, relevantPrice);
+            
+            const currency = transactionsForSymbol[0].currency;
+            const {maxProfit, maxLoss, breakevenPrices} = calculateStrategyMetrics(transactionsForSymbol);
+            
+            updateStrategyMetrics(maxProfit, maxLoss, breakevenPrices, currency);
         }
-    };
 
-    reader.readAsText(file);
-}
+        const updateStrategyPriceForSymbol = (symbol) => {
+             if (symbol) {
+                const transactionsForSymbol = transactions.filter(t => t.symbol === symbol);
+                let maxPrice = 0;
+                transactionsForSymbol.forEach(t => {
+                    let price = 0;
+                    if (t.assetType === 'Stock') {
+                        price = t.transactionPrice;
+                    } else {
+                        price = Math.max(t.strikePrice, t.underlyingAssetPrice || 0);
+                    }
+                    if (price > maxPrice) {
+                        maxPrice = price;
+                    }
+                });
+                strategyPriceInput.value = maxPrice.toFixed(2);
+             }
+        }
 
-// Event listeners
-addTransactionButton.addEventListener('click', () => {
-    form.reset();
-    transactionIdInput.value = '';
-    document.querySelector('#transaction-form h2').textContent = 'Add New Transaction';
-    formContainer.classList.remove('hidden');
-    toggleOptionFields(); // NEW: Call function to hide fields by default
-});
+        document.getElementById('strategy-btn').addEventListener('click', () => {
+            strategySimulationModal.classList.remove('hidden');
+            strategySimulationModal.classList.add('flex');
+            const symbol = strategySymbolSelect.value;
+            if (symbol) {
+                updateStrategyPriceForSymbol(symbol);
+                runStrategySimulation();
+            }
+        });
 
-cancelButton.addEventListener('click', () => {
-    formContainer.classList.add('hidden');
-});
+        strategySymbolSelect.addEventListener('change', () => {
+            const symbol = strategySymbolSelect.value;
+            updateStrategyPriceForSymbol(symbol);
+            runStrategySimulation();
+        });
 
-// Use event delegation for list actions
-transactionsList.addEventListener('click', (event) => {
-    handleEditClick(event);
-    handleDeleteClick(event);
-});
+        strategyPriceInput.addEventListener('input', runStrategySimulation);
+        
+        const calculateStrategyMetrics = (transactionsForSymbol) => {
+            const pnlData = [];
+            const relevantPrice = parseFloat(strategyPriceInput.value);
+            
+            const minPrice = relevantPrice * 0;
+            const maxPrice = relevantPrice * 2;
+            const numDataPoints = 201; 
+            const priceStep = (maxPrice - minPrice) / (numDataPoints - 1);
 
-// Event listener for the product dropdown to show/hide fields
-productInput.addEventListener('change', toggleOptionFields); // NEW
+            let maxProfit = -Infinity;
+            let maxLoss = Infinity;
+            let breakevenPrices = [];
 
-// Form submission listener
-form.addEventListener('submit', handleFormSubmit);
+            for (let i = 0; i < numDataPoints; i++) {
+                const simulatedPrice = minPrice + (i * priceStep);
+                let totalPnl = 0;
 
-// Import/Export listeners
-exportButton.addEventListener('click', () => {
-    exportToJSON();
-});
-importButton.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', handleFileImport);
+                transactionsForSymbol.forEach(t => {
+                    if (t.assetType === 'Stock') {
+                        totalPnl += calculateStockPNL(simulatedPrice, t);
+                    } else {
+                        totalPnl += calculateOptionPNL(simulatedPrice, t);
+                    }
+                });
+                
+                pnlData.push(totalPnl);
+                if (totalPnl > maxProfit) maxProfit = totalPnl;
+                if (totalPnl < maxLoss) maxLoss = totalPnl;
+                
+                if (i > 0 && (pnlData[i] * pnlData[i-1] < 0)) {
+                    const prevPrice = minPrice + ((i - 1) * priceStep);
+                    const prevPnl = pnlData[i - 1];
+                    const currPrice = simulatedPrice;
+                    const currPnl = pnlData[i];
+                    const exactBreakeven = prevPrice - (prevPnl * ((currPrice - prevPrice) / (currPnl - prevPnl)));
+                    breakevenPrices.push(exactBreakeven.toFixed(2));
+                }
+            }
+            return {maxProfit, maxLoss, breakevenPrices};
+        }
 
+        const updateStrategyMetrics = (maxProfit, maxLoss, breakevenPrices, currency) => {
+            const profitEl = document.getElementById('strategy-max-profit');
+            const lossEl = document.getElementById('strategy-max-loss');
+            const breakevenEl = document.getElementById('strategy-breakeven-range');
 
-// Initial call to load and render transactions when the page loads
-loadTransactions();
-renderTransactions();
+            profitEl.textContent = maxProfit === Infinity ? '∞' : `${maxProfit.toFixed(2)} ${currency}`;
+            lossEl.textContent = maxLoss === -Infinity ? '-∞' : `${maxLoss.toFixed(2)} ${currency}`;
+            breakevenEl.textContent = breakevenPrices.length > 0 ? breakevenPrices.join(' & ') : 'None';
+
+            profitEl.className = `font-bold ${maxProfit > 0 || maxProfit === Infinity ? 'text-logo-green' : 'text-neutral-text'}`;
+            lossEl.className = `font-bold ${maxLoss < 0 || maxLoss === -Infinity ? 'text-logo-red' : 'text-neutral-text'}`;
+            breakevenEl.className = 'font-bold text-neutral-text';
+        };
+
+        const analyzeStrategyBtn = document.getElementById('analyze-strategy-btn');
+        const analysisResultDiv = document.getElementById('strategy-analysis-result');
+        const analysisStatusP = document.getElementById('analyze-strategy-status');
+
+        analyzeStrategyBtn.addEventListener('click', async () => {
+            const symbol = strategySymbolSelect.value;
+            if (!symbol) {
+                showMessageBox('Please select a symbol to analyze a strategy.');
+                return;
+            }
+            analysisResultDiv.innerHTML = '';
+            analysisStatusP.textContent = 'Analyzing your strategy...';
+            analyzeStrategyBtn.disabled = true;
+
+            const transactionsForSymbol = transactions.filter(t => t.symbol === symbol);
+            
+            const transactionListPrompt = transactionsForSymbol.map(t => {
+                if (t.assetType === 'Stock') {
+                    return `a ${t.action} of ${t.quantity} shares of ${t.symbol} at a price of ${t.transactionPrice} ${t.currency}`;
+                } else {
+                    return `a ${t.action} of ${t.quantity} ${t.assetType.replace(' Option', '')} options on ${t.symbol} with a strike price of ${t.strikePrice} ${t.currency} and a premium of ${t.premium} ${t.currency}`;
+                }
+            }).join(', ');
+
+            const prompt = `Based on the following list of transactions, identify the type of options trading strategy being employed and provide a short, simple explanation of its characteristics, including its risk profile and potential for profit and loss. Do not include financial advice, just a general explanation.
+            Transactions: ${transactionListPrompt}.`;
+
+            try {
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = "" 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    analysisResultDiv.innerHTML = text.replace(/\n/g, '<br>');
+                    analysisStatusP.textContent = 'Analysis complete.';
+                } else {
+                    analysisResultDiv.textContent = 'Unable to analyze the strategy. The response from the API was empty or invalid.';
+                    analysisStatusP.textContent = 'Error during analysis.';
+                }
+
+            } catch (error) {
+                console.error('Error calling Gemini API:', error);
+                analysisResultDiv.textContent = 'An error occurred while analyzing the strategy. Please try again later.';
+                analysisStatusP.textContent = 'Error during analysis.';
+            } finally {
+                analyzeStrategyBtn.disabled = false;
+            }
+        });
+
+        document.getElementById('close-pnl-modal').addEventListener('click', () => {
+            pnlSimulationModal.classList.add('hidden');
+        });
+        document.getElementById('close-strategy-modal').addEventListener('click', () => {
+            strategySimulationModal.classList.add('hidden');
+        });
+
+        renderTransactionList();
