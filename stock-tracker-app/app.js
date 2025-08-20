@@ -26,6 +26,7 @@
         // --- Core Application Logic ---
         let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
         let editingTransactionId = null;
+        let selectedSymbols = [];
 
         // Modals and FABs
         const addTransactionFab = document.getElementById('add-transaction-fab');
@@ -41,9 +42,10 @@
         const toggleApiKeyFormBtn = document.getElementById('toggle-api-key-form');
         const apiKeyFormContainer = document.getElementById('api-key-form-container');
         const geminiApiKeyInput = document.getElementById('gemini-api-key-input');
+        const alphaVantageApiKeyInput = document.getElementById('alpha-vantage-api-key-input');
         const saveApiKeyBtn = document.getElementById('save-api-key-btn');
-        let userProvidedApiKey = localStorage.getItem('geminiApiKey') || ""; // Retrieve saved key on load
-
+        let userProvidedGeminiApiKey = localStorage.getItem('geminiApiKey') || ""; // Retrieve saved key on load
+        let userProvidedAlphaVantageApiKey = localStorage.getItem('alphaVantageApiKey') || ""; // Retrieve saved key on load
 
         const transactionForm = document.getElementById('transaction-form');
         const assetTypeSelect = document.getElementById('asset-type');
@@ -65,6 +67,7 @@
         const strategyBtnContainer = document.getElementById('strategy-btn-container');
 
         const transactionDateInput = document.getElementById('transaction-date');
+        const nameInput = document.getElementById('name');
         const strategyMaxProfitSpan = document.getElementById('strategy-max-profit');
         const strategyMaxLossSpan = document.getElementById('strategy-max-loss');
         const strategyBreakevenRangeSpan = document.getElementById('strategy-breakeven-range');
@@ -73,6 +76,18 @@
         const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
         let transactionToDeleteId = null;
+
+        // Symbol Search elements (main page)
+        const symbolSearchInput = document.getElementById('symbol-search-input');
+        const searchResultsContainer = document.getElementById('search-results-container');
+        const selectedSymbolsContainer = document.getElementById('selected-symbols-container');
+        let searchTimeout = null;
+
+        // Symbol Search elements (add/edit modal)
+        const transactionSymbolInput = document.getElementById('symbol');
+        const transactionNameInput = document.getElementById('name');
+        const transactionSymbolSearchResults = document.getElementById('transaction-symbol-search-results');
+
 
         const today = new Date().toISOString().split('T')[0];
         transactionDateInput.value = today;
@@ -259,6 +274,9 @@
                 } else {
                     priceInfo = `Strike: ${t.strikePrice} ${t.currency} | Prem: ${t.premium} ${t.currency}`;
                 }
+
+                // Get the display name, prioritizing 'name' over 'symbol'
+                const displayName = t.name && t.name.trim() !== '' ? t.name : t.symbol;
                 
                 const transactionItem = document.createElement('div');
                 transactionItem.className = 'bg-neutral-card p-4 rounded-lg shadow-subtle space-y-4 cursor-pointer';
@@ -266,7 +284,7 @@
                     <div class="flex items-center justify-between" data-id="${t.id}" data-action="toggle-details">
                         <div class="flex flex-col">
                             <div class="flex items-center">
-                                <span class="text-xl font-bold text-neutral-text">${t.symbol}</span>
+                                <span class="text-xl font-bold text-neutral-text">${displayName}</span>
                                 <span class="ml-4 px-3 py-1 rounded-full text-xs font-semibold ${assetTypeClass}">${t.assetType} - ${t.action}</span>
                             </div>
                             <div class="text-sm text-gray-500 mt-1">
@@ -341,39 +359,61 @@
             }
         };
 
-        // Event listener for Add Transaction FAB
+        // Render the selected symbols to the UI
+        const renderSelectedSymbols = () => {
+            selectedSymbolsContainer.innerHTML = '';
+            if (selectedSymbols.length > 0) {
+                selectedSymbols.forEach(s => {
+                    const symbolCard = document.createElement('div');
+                    symbolCard.className = 'relative bg-gray-100 text-gray-800 px-4 py-2 rounded-full flex items-center gap-2 shadow-sm cursor-pointer';
+                    symbolCard.innerHTML = `
+                        <span class="font-semibold" data-symbol="${s.symbol}" data-name="${s.name}">${s.symbol}</span>
+                        <span class="text-sm text-gray-600 truncate max-w-[100px]" data-symbol="${s.symbol}" data-name="${s.name}">${s.name}</span>
+                        <button class="remove-symbol-btn text-gray-400 hover:text-red-500 transition-colors" data-symbol="${s.symbol}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    `;
+                    selectedSymbolsContainer.appendChild(symbolCard);
+                });
+            }
+        };
+
+        // Event listener for adding new transactions
         addTransactionFab.addEventListener('click', () => {
             editingTransactionId = null;
             transactionForm.reset();
             transactionDateInput.value = today;
-            optionExpiryInput.value = getThirdFridayOfNextMonth(); // Set default expiry for new transaction
+            optionExpiryInput.value = getThirdFridayOfNextMonth();
             document.getElementById('submit-btn').textContent = 'Add Transaction';
             document.getElementById('cancel-btn').classList.add('hidden');
             transactionModalTitle.textContent = 'Add New Transaction';
-            toggleFields(); // Ensure correct fields are shown and fees are set
+            toggleFields();
             addTransactionModal.classList.remove('hidden');
             addTransactionModal.classList.add('flex');
+            transactionSymbolSearchResults.innerHTML = '';
         });
 
         // Event listener for closing Add Transaction Modal
         closeTransactionModalBtn.addEventListener('click', () => {
             addTransactionModal.classList.add('hidden');
             addTransactionModal.classList.remove('flex');
+            transactionSymbolSearchResults.innerHTML = '';
         });
 
         // Event listener for Data Management FAB
         dataManagementFab.addEventListener('click', () => {
             dataManagementModal.classList.remove('hidden');
             dataManagementModal.classList.add('flex');
-            // Populate API key input when modal opens
             geminiApiKeyInput.value = localStorage.getItem('geminiApiKey') || "";
+            alphaVantageApiKeyInput.value = localStorage.getItem('alphaVantageApiKey') || "";
         });
 
         // Event listener for closing Data Management Modal
         closeDataManagementModalBtn.addEventListener('click', () => {
             dataManagementModal.classList.add('hidden');
             dataManagementModal.classList.remove('flex');
-            // Hide API key form when closing data management modal
             apiKeyFormContainer.classList.add('hidden');
             toggleApiKeyFormBtn.querySelector('svg').style.transform = 'rotate(0deg)';
         });
@@ -389,14 +429,175 @@
             }
         });
 
-        // Save API Key
+        // Save API Keys
         saveApiKeyBtn.addEventListener('click', () => {
-            const key = geminiApiKeyInput.value.trim();
-            localStorage.setItem('geminiApiKey', key);
-            userProvidedApiKey = key; // Update the global variable
-            showToast('API Key saved successfully!');
-            apiKeyFormContainer.classList.add('hidden'); // Hide form after saving
+            const geminiKey = geminiApiKeyInput.value.trim();
+            const alphaVantageKey = alphaVantageApiKeyInput.value.trim();
+            localStorage.setItem('geminiApiKey', geminiKey);
+            localStorage.setItem('alphaVantageApiKey', alphaVantageKey);
+            userProvidedGeminiApiKey = geminiKey;
+            userProvidedAlphaVantageApiKey = alphaVantageKey;
+            showToast('API Keys saved successfully!');
+            apiKeyFormContainer.classList.add('hidden');
             toggleApiKeyFormBtn.querySelector('svg').style.transform = 'rotate(0deg)';
+        });
+
+        // Function to perform a symbol search using Alpha Vantage API
+        const searchSymbol = async (query) => {
+            if (!userProvidedAlphaVantageApiKey) {
+                searchResultsContainer.innerHTML = `<p class="text-logo-red text-sm">Please provide your Alpha Vantage API Key in the Data Management section to use this feature.</p>`;
+                return;
+            }
+
+            if (query.length < 1) {
+                searchResultsContainer.innerHTML = '';
+                return;
+            }
+
+            searchResultsContainer.innerHTML = `<p class="text-gray-500 italic">Searching...</p>`;
+            try {
+                const apiUrl = `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${query}&apikey=${userProvidedAlphaVantageApiKey}`;
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                if (data.bestMatches && data.bestMatches.length > 0) {
+                    const resultsHtml = data.bestMatches.map(match => `
+                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" data-symbol="${match['1. symbol']}" data-name="${match['2. name']}">
+                            <span class="font-bold text-gray-800">${match['1. symbol']}</span>
+                            <span class="text-gray-600">- ${match['2. name']}</span>
+                            <span class="text-sm text-gray-400 ml-auto">${match['4. region']}</span>
+                        </div>
+                    `).join('');
+                    searchResultsContainer.innerHTML = resultsHtml;
+                } else if (data.Note) {
+                     searchResultsContainer.innerHTML = `<p class="text-logo-red text-sm">${data.Note}</p>`;
+                } else {
+                    searchResultsContainer.innerHTML = `<p class="text-gray-500 italic">No matches found for "${query}".</p>`;
+                }
+
+            } catch (error) {
+                console.error('Error during symbol search:', error);
+                searchResultsContainer.innerHTML = `<p class="text-logo-red text-sm">An error occurred while searching. Please try again.</p>`;
+            }
+        };
+
+        // Function to perform symbol lookup for transaction form
+        const lookupSymbol = async (query) => {
+            transactionSymbolSearchResults.innerHTML = '';
+            if (query.length < 1) {
+                return;
+            }
+
+            const localMatches = transactions.filter(t => t.symbol.includes(query.toUpperCase()) && t.name && t.name.trim() !== '');
+            const uniqueLocalMatches = [...new Map(localMatches.map(item => [item.symbol, item])).values()];
+            
+            if (uniqueLocalMatches.length > 0) {
+                const localHtml = uniqueLocalMatches.map(match => `
+                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" data-symbol="${match.symbol}" data-name="${match.name}">
+                        <span class="font-bold text-gray-800">${match.symbol}</span>
+                        <span class="text-gray-600">- ${match.name}</span>
+                        <span class="text-sm text-gray-400 ml-auto">(Existing)</span>
+                    </div>
+                `).join('');
+                transactionSymbolSearchResults.innerHTML = `<p class="text-sm font-semibold text-gray-700 mb-2">Suggestions from your transactions:</p>${localHtml}`;
+                return;
+            }
+            
+            if (!userProvidedAlphaVantageApiKey) {
+                transactionSymbolSearchResults.innerHTML = `<p class="text-logo-red text-sm">Please provide your Alpha Vantage API Key in the Data Management section to get online suggestions.</p>`;
+                return;
+            }
+
+            transactionSymbolSearchResults.innerHTML = `<p class="text-gray-500 italic">Searching online...</p>`;
+            try {
+                const apiUrl = `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${query}&apikey=${userProvidedAlphaVantageApiKey}`;
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                if (data.bestMatches && data.bestMatches.length > 0) {
+                    const resultsHtml = data.bestMatches.map(match => `
+                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" data-symbol="${match['1. symbol']}" data-name="${match['2. name']}">
+                            <span class="font-bold text-gray-800">${match['1. symbol']}</span>
+                            <span class="text-gray-600">- ${match['2. name']}</span>
+                            <span class="text-sm text-gray-400 ml-auto">${match['4. region']}</span>
+                        </div>
+                    `).join('');
+                    transactionSymbolSearchResults.innerHTML = `<p class="text-sm font-semibold text-gray-700 mb-2">Online Search Results:</p>${resultsHtml}`;
+                } else if (data.Note) {
+                     transactionSymbolSearchResults.innerHTML = `<p class="text-logo-red text-sm">${data.Note}</p>`;
+                } else {
+                    transactionSymbolSearchResults.innerHTML = `<p class="text-gray-500 italic">No online matches found.</p>`;
+                }
+            } catch (error) {
+                console.error('Error during symbol lookup:', error);
+                transactionSymbolSearchResults.innerHTML = `<p class="text-logo-red text-sm">An error occurred while searching. Please try again.</p>`;
+            }
+        };
+
+        // Event listener for the main page search bar input
+        symbolSearchInput.addEventListener('keyup', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchSymbol(e.target.value.trim());
+            }, 500); // 500ms debounce
+        });
+
+        // Event listener for clicking on a main search result
+        searchResultsContainer.addEventListener('click', (e) => {
+            const resultDiv = e.target.closest('div[data-symbol]');
+            if (resultDiv) {
+                const symbol = resultDiv.dataset.symbol;
+                const name = resultDiv.dataset.name;
+                
+                // Add the selected symbol to the array if it's not already there
+                const existingIndex = selectedSymbols.findIndex(s => s.symbol === symbol);
+                if (existingIndex === -1) {
+                    selectedSymbols.push({ symbol, name });
+                    renderSelectedSymbols();
+                }
+
+                // Clear the search results after selection
+                searchResultsContainer.innerHTML = '';
+                symbolSearchInput.value = '';
+            }
+        });
+
+        // Event listener for clicks on the selected symbol cards
+        selectedSymbolsContainer.addEventListener('click', (e) => {
+            const target = e.target;
+            const card = target.closest('div[data-symbol]');
+            
+            if (target.classList.contains('remove-symbol-btn') || target.closest('.remove-symbol-btn')) {
+                // Handle remove button click
+                const symbolToRemove = target.closest('.remove-symbol-btn').dataset.symbol;
+                selectedSymbols = selectedSymbols.filter(s => s.symbol !== symbolToRemove);
+                renderSelectedSymbols();
+            } else if (card) {
+                // Handle card click to populate form
+                const symbol = card.dataset.symbol;
+                const name = card.dataset.name;
+                transactionSymbolInput.value = symbol;
+                transactionNameInput.value = name;
+                addTransactionFab.click(); // Open the transaction modal
+            }
+        });
+
+        // Event listener for transaction modal symbol input
+        transactionSymbolInput.addEventListener('keyup', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                lookupSymbol(e.target.value.trim());
+            }, 500);
+        });
+
+        // Event listener for clicking on a transaction modal search result
+        transactionSymbolSearchResults.addEventListener('click', (e) => {
+            const resultDiv = e.target.closest('div[data-symbol]');
+            if (resultDiv) {
+                transactionSymbolInput.value = resultDiv.dataset.symbol;
+                transactionNameInput.value = resultDiv.dataset.name;
+                transactionSymbolSearchResults.innerHTML = '';
+            }
         });
 
 
@@ -406,6 +607,7 @@
             const assetType = document.getElementById('asset-type').value;
             const action = document.getElementById('action').value;
             const symbol = document.getElementById('symbol').value.toUpperCase();
+            const name = nameInput.value.trim();
             const quantity = parseFloat(document.getElementById('quantity').value);
             const transactionDate = document.getElementById('transaction-date').value;
             const currency = document.getElementById('currency').value;
@@ -415,6 +617,7 @@
                 assetType,
                 action,
                 symbol,
+                name,
                 quantity,
                 transactionDate,
                 currency,
@@ -478,6 +681,7 @@
                 document.getElementById('asset-type').value = transaction.assetType;
                 document.getElementById('action').value = transaction.action;
                 document.getElementById('symbol').value = transaction.symbol;
+                nameInput.value = transaction.name || '';
                 document.getElementById('quantity').value = transaction.quantity;
                 document.getElementById('transaction-date').value = transaction.transactionDate;
                 document.getElementById('currency').value = transaction.currency;
@@ -495,6 +699,8 @@
                 toggleFields(); // Ensure correct fields are shown and fees are set
                 addTransactionModal.classList.remove('hidden'); // Show the modal for editing
                 addTransactionModal.classList.add('flex');
+                // Clear symbol search results when modal is opened for editing
+                transactionSymbolSearchResults.innerHTML = '';
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             } else if (target.classList.contains('delete-btn')) {
                 transactionToDeleteId = id;
@@ -525,7 +731,7 @@
         closePnlModalBtn.addEventListener('click', () => {
             pnlSimulationModal.classList.add('hidden');
         });
-        closeStrategyModalBtn.addEventListener('click', () => {
+        document.getElementById('close-strategy-modal').addEventListener('click', () => {
             strategySimulationModal.classList.add('hidden');
         });
 
@@ -1011,10 +1217,11 @@
             const transactionsForSymbol = transactions.filter(t => t.symbol === symbol);
             
             const transactionListPrompt = transactionsForSymbol.map(t => {
+                const displayName = t.name && t.name.trim() !== '' ? t.name : t.symbol;
                 if (t.assetType === 'Stock') {
-                    return `a ${t.action} of ${t.quantity} shares of ${t.symbol} at a price of ${t.transactionPrice} ${t.currency}`;
+                    return `a ${t.action} of ${t.quantity} shares of ${displayName} at a price of ${t.transactionPrice} ${t.currency}`;
                 } else {
-                    return `a ${t.action} of ${t.quantity} ${t.assetType.replace(' Option', '')} options on ${t.symbol} with a strike price of ${t.strikePrice} ${t.currency} and a premium of ${t.premium} ${t.currency}`;
+                    return `a ${t.action} of ${t.quantity} ${t.assetType.replace(' Option', '')} options on ${displayName} with a strike price of ${t.strikePrice} ${t.currency} and a premium of ${t.premium} ${t.currency}`;
                 }
             }).join(', ');
 
@@ -1026,7 +1233,7 @@
                 chatHistory.push({ role: "user", parts: [{ text: prompt }] });
                 const payload = { contents: chatHistory };
                 // Use user-provided API key if available, otherwise default to empty string for Canvas injection
-                const apiKey = userProvidedApiKey; 
+                const apiKey = userProvidedGeminiApiKey; 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
                 
                 const response = await fetch(apiUrl, {

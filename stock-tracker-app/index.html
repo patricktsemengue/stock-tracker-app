@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <title>Strady: Strategy Builder</title>
     <!-- Favicon -->
     <link rel="icon" href="./files/strady_icon.jpg" type="image/jpeg">
@@ -14,26 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.1/dist/chartjs-plugin-annotation.min.js"></script>
     <!-- Chart.js Zoom Plugin -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              'logo-bg': '#f7f4ec',
-              'logo-primary': '#2a5a54', // Dark teal from "Strady"
-              'logo-green': '#6d9f82', // Light green from icon
-              'logo-red': '#ef4444', // Red from arrow
-              'logo-blue': '#3b82f6', // Blue from bars
-              'logo-text-secondary': '#666', // Dark gray from subtitle
-            },
-            boxShadow: {
-              'subtle': '0 1px 3px rgba(0,0,0,0.08)',
-              'lg-subtle': '0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05)',
-            }
-          }
-        }
-      }
-    </script>
+    <script src="./tailwind.js"></script>
     <link rel="stylesheet" href="./strady.css">
 </head>
 <body class="p-4">
@@ -70,6 +51,23 @@
 
             <!-- Right Column: Transactions & Data Management -->
             <div class="lg:col-span-3 space-y-8">
+                <!-- Symbol Search Section -->
+                <section class="card">
+                    <h2 class="text-xl section-header text-neutral-text mb-4">Symbol Search</h2>
+                    <div class="flex flex-col gap-2">
+                        <input type="text" id="symbol-search-input" class="input-field" placeholder="Search for a symbol (e.g., AAPL)">
+                        <div id="search-results-container" class="space-y-2">
+                            <!-- Search results will be dynamically added here -->
+                        </div>
+                    </div>
+                </section>
+                <!-- Selected Symbols Container -->
+                <section id="selected-symbols-section" class="card hidden">
+                    <h2 class="text-xl section-header text-neutral-text mb-4">Selected Symbols</h2>
+                    <div id="selected-symbols-container" class="flex flex-wrap gap-2">
+                        <!-- Selected symbols will be dynamically added here -->
+                    </div>
+                </section>
                 <!-- Transaction List Section -->
                 <section class="card">
                     <h2 class="text-xl section-header text-neutral-text mb-6">My Transactions</h2>
@@ -123,7 +121,16 @@
                         <div class="w-full">
                             <label for="symbol" class="block text-sm font-medium text-gray-600 mb-1">Symbol</label>
                             <input type="text" id="symbol" class="input-field" required>
+                            <div id="transaction-symbol-search-results" class="mt-2 space-y-2">
+                                <!-- Suggestions will be dynamically added here -->
+                            </div>
                         </div>
+                        <div class="w-full">
+                            <label for="name" class="block text-sm font-medium text-gray-600 mb-1">Name (Optional)</label>
+                            <input type="text" id="name" class="input-field" placeholder="e.g. My Favorite Stock">
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-4">
                         <div class="w-full">
                             <label for="quantity" class="block text-sm font-medium text-gray-600 mb-1">Quantity</label>
                             <input type="number" id="quantity" class="input-field" required>
@@ -233,6 +240,10 @@
                         <div>
                             <label for="gemini-api-key-input" class="block text-sm font-medium text-gray-600 mb-1">GEMINI_API_KEY</label>
                             <input type="text" id="gemini-api-key-input" class="input-field" placeholder="Enter your Gemini API Key">
+                        </div>
+                        <div>
+                            <label for="alpha-vantage-api-key-input" class="block text-sm font-medium text-gray-600 mb-1">ALPHA_VANTAGE_API_KEY</label>
+                            <input type="text" id="alpha-vantage-api-key-input" class="input-field" placeholder="Enter your Alpha Vantage API Key">
                         </div>
                         <button id="save-api-key-btn" class="w-full bg-logo-primary text-white px-6 py-3 rounded-full shadow-lg hover:bg-opacity-80 transition-colors text-base font-bold">
                             Save API Key
