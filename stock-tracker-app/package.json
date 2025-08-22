@@ -1,0 +1,15 @@
+{
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "name": "stock-tracker-app",
+  "version": "1.0.0",
+  "main": "app.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
