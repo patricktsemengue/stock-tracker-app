@@ -655,6 +655,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const updateTransactionNamesBySymbol = (symbol, name) => {
+        if (!name || name.trim() === '') {
+            return; // Don't update if the new name is empty
+        }
+        transactions.forEach(t => {
+            if (t.symbol === symbol && (!t.name || t.name.trim() === '')) {
+                t.name = name;
+            }
+        });
+    };
+
 
     transactionForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -700,6 +711,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             transactions.push(newTransaction);
             showToast('Transaction added successfully!');
+        }
+
+        // Call  update names for matching symbols
+        if (name) { // Only run if a name was provided
+            updateTransactionNamesBySymbol(symbol, name);
         }
 
         saveTransactions();
