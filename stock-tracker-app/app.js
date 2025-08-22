@@ -68,29 +68,65 @@ document.addEventListener('DOMContentLoaded', () => {
         fmpApiKey: ''
     };
 
-    // This is a new async function to fetch keys from the server
+    // This is an async function to fetch keys from the server
+    const hideApiKeyInput = (inputElement) => {
+        if (inputElement) {
+            inputElement.closest('div').classList.add('hidden');
+        }
+    };
     const initializeApiKeys = async () => {
         try {
             const response = await fetch('/api/config');
             if (response.ok) {
                 const serverKeys = await response.json();
-                apiKeys.geminiApiKey = serverKeys.geminiApiKey || localStorage.getItem('geminiApiKey') || '';
-                apiKeys.alphaVantageApiKey = serverKeys.alphaVantageApiKey || localStorage.getItem('alphaVantageApiKey') || '';
-                apiKeys.fmpApiKey = serverKeys.fmpApiKey || localStorage.getItem('fmpApiKey') || ''; // Add this line
+                
+                apiKeys.geminiApiKey = serverKeys.geminiApiKey || '';
+                apiKeys.alphaVantageApiKey = serverKeys.alphaVantageApiKey || '';
+                apiKeys.fmpApiKey = serverKeys.fmpApiKey || '';
+
+                // Check for keys and hide inputs if they are present on the server
+                if (apiKeys.geminiApiKey) {
+                    document.querySelector('[data-key="gemini"]').classList.add('hidden');
+                } else {
+                    document.querySelector('[data-key="gemini"]').classList.remove('hidden');
+                }
+
+                if (apiKeys.alphaVantageApiKey) {
+                    document.querySelector('[data-key="alpha-vantage"]').classList.add('hidden');
+                } else {
+                    document.querySelector('[data-key="alpha-vantage"]').classList.remove('hidden');
+                }
+
+                if (apiKeys.fmpApiKey) {
+                    document.querySelector('[data-key="fmp"]').classList.add('hidden');
+                } else {
+                    document.querySelector('[data-key="fmp"]').classList.remove('hidden');
+                }
+
                 if (serverKeys.geminiApiKey || serverKeys.alphaVantageApiKey || serverKeys.fmpApiKey) {
                     showToast('(°_°)');
+                } else {
+                    showToast('Failed to get keys from server, please enter them manually.');
                 }
+
             } else {
-                console.warn('Failed to fetch keys from server. Falling back to local storage.');
-                apiKeys.geminiApiKey = localStorage.getItem('geminiApiKey') || '';
-                apiKeys.alphaVantageApiKey = localStorage.getItem('alphaVantageApiKey') || '';
-                apiKeys.fmpApiKey = localStorage.getItem('fmpApiKey') || ''; 
+                // If fetching from server fails, show all inputs
+                console.warn('Failed to fetch keys from server. Falling back to local storage and showing all inputs.');
+                document.querySelector('[data-key="gemini"]').classList.remove('hidden');
+                document.querySelector('[data-key="alpha-vantage"]').classList.remove('hidden');
+                document.querySelector('[data-key="fmp"]').classList.remove('hidden');
             }
         } catch (error) {
-            console.error('Network error fetching server keys, falling back to local storage:', error);
-            apiKeys.geminiApiKey = localStorage.getItem('geminiApiKey') || '';
-            apiKeys.alphaVantageApiKey = localStorage.getItem('alphaVantageApiKey') || '';
-            apiKeys.fmpApiKey = localStorage.getItem('fmpApiKey') || '';       
+            // Network error, show all inputs
+            console.error('Network error fetching server keys, falling back to local storage and showing all inputs:', error);
+            document.querySelector('[data-key="gemini"]').classList.remove('hidden');
+            document.querySelector('[data-key="alpha-vantage"]').classList.remove('hidden');
+            document.querySelector('[data-key="fmp"]').classList.remove('hidden');
+        } finally {
+            // After trying to fetch from server, check local storage
+            apiKeys.geminiApiKey = apiKeys.geminiApiKey || localStorage.getItem('geminiApiKey') || '';
+            apiKeys.alphaVantageApiKey = apiKeys.alphaVantageApiKey || localStorage.getItem('alphaVantageApiKey') || '';
+            apiKeys.fmpApiKey = apiKeys.fmpApiKey || localStorage.getItem('fmpApiKey') || '';
         }
     };
 
@@ -258,10 +294,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const alphaVantageKey = alphaVantageApiKeyInput.value.trim();
         const fmpKey = fmpApiKeyInput.value.trim(); 
 
-        // Save each key to local storage with its corresponding key name
-        localStorage.setItem('geminiApiKey', geminiKey);
-        localStorage.setItem('alphaVantageApiKey', alphaVantageKey);
-        localStorage.setItem('fmpApiKey', fmpKey); 
+        // Save each key to local storage only if it's not hidden
+        if (!geminiApiKeyInput.closest('div').classList.contains('hidden')) {
+            localStorage.setItem('geminiApiKey', geminiKey);
+        }
+        if (!alphaVantageApiKeyInput.closest('div').classList.contains('hidden')) {
+            localStorage.setItem('alphaVantageApiKey', alphaVantageKey);
+        }
+        if (!fmpApiKeyInput.closest('div').classList.contains('hidden')) {
+            localStorage.setItem('fmpApiKey', fmpKey); 
+        }
 
         // Update the in-memory keys for immediate use
         apiKeys.geminiApiKey = geminiKey;
