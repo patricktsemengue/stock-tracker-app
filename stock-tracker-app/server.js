@@ -20,7 +20,7 @@ app.get('/api/config', (req, res) => {
         try {
             const settings = JSON.parse(data);
             res.json({
-                //geminiApiKey: settings.GEMINI_API_KEY,
+                geminiApiKey: settings.GEMINI_API_KEY,
                 alphaVantageApiKey: settings.ALPHA_VANTAGE_API_KEY,
                 fmpApiKey: settings.FMP_API_KEY
             });
