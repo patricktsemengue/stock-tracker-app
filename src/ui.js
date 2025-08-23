@@ -275,6 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = transactionItem.dataset.id;
         const actionButton = target.closest('[data-action]');
         const action = actionButton ? actionButton.dataset.action : null;
+        const tooltipIcon = target.closest('.tooltip-icon');
 
         if (action === 'toggle-details') {
             const details = document.getElementById(`details-${id}`);
@@ -294,7 +295,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 details.classList.add('expanded');
                 if (chevron) chevron.style.transform = 'rotate(180deg)';
             }
-
         } else if (target.classList.contains('edit-btn')) {
             const transaction = getTransactionById(id);
             if (!transaction) {
@@ -335,6 +335,26 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 showMessageBox('Transaction not found. Please try again.');
             }
+        } else if (tooltipIcon) {
+            const tooltipContainer = tooltipIcon.closest('.tooltip-container');
+            const otherOpenTooltips = document.querySelectorAll('.tooltip-container.show');
+            otherOpenTooltips.forEach(tooltip => {
+                if (tooltip !== tooltipContainer) {
+                    tooltip.classList.remove('show');
+                }
+            });
+            tooltipContainer.classList.toggle('show');
+            e.stopPropagation(); // Prevent the main transaction card from expanding/collapsing
+        }
+    });
+    
+    // Close tooltips when clicking anywhere else on the document
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.tooltip-container')) {
+            const openTooltips = document.querySelectorAll('.tooltip-container.show');
+            openTooltips.forEach(tooltip => {
+                tooltip.classList.remove('show');
+            });
         }
     });
 

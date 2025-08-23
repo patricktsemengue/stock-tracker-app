@@ -17,49 +17,43 @@ export const calculateOptionPNL = (underlyingPrice, transaction) => {
 };
 
 export const calculateTransactionMetrics = (transaction) => {
+    let investedAmount = 0;
+    let premiumIncome = 0;
+    let riskExposure = -Infinity;
+    let breakEven = 0;
+    
     if (transaction.assetType === 'Stock') {
         const { action, transactionPrice, fees, quantity } = transaction;
-        const direction = action === 'Buy' ? 1 : -1;
-        const totalCost = (transactionPrice * quantity) + (fees * quantity);
-        let maxProfit = Infinity;
-        if (action === 'Sell') {
-            maxProfit = totalCost;
-        }
-        let maxLoss = -Infinity;
         if (action === 'Buy') {
-            maxLoss = -totalCost;
+            investedAmount = (transactionPrice * quantity) + (fees * quantity);
+            riskExposure = investedAmount; // Max loss is the entire investment if price goes to 0
+            breakEven = transactionPrice + fees;
+        } else { // Sell
+            riskExposure = -Infinity; // Theoretical unlimited loss if price rises
+            breakEven = transactionPrice - fees;
         }
-        let breakEven = transactionPrice + (direction * fees);
-        return { maxProfit, maxLoss, breakEven };
-    } else {
+    } else { // Options
         const { action, assetType, strikePrice, premium, fees, quantity } = transaction;
-        const direction = action === 'Buy' ? 1 : -1;
-        let maxProfit = 0;
         if (action === 'Buy') {
+            investedAmount = (premium * quantity * 100) + (fees * quantity);
+            riskExposure = investedAmount; // Max loss is the premium and fees paid
             if (assetType === 'Call Option') {
-                maxProfit = Infinity;
-            } else {
-                maxProfit = (strikePrice - premium) * quantity * 100 - (fees * quantity);
+                breakEven = strikePrice + premium;
+            } else { // Put Option
+                breakEven = strikePrice - premium;
             }
-        } else {
-            maxProfit = (premium * quantity * 100) - (fees * quantity);
-        }
-        let maxLoss = 0;
-        if (action === 'Buy') {
-            maxLoss = -((premium * quantity * 100) + (fees * quantity));
-        } else {
+        } else { // Sell
+            premiumIncome = (premium * quantity * 100) - (fees * quantity);
             if (assetType === 'Call Option') {
-                maxLoss = -Infinity;
-            } else {
-                maxLoss = -((strikePrice - premium) * quantity * 100 + (fees * quantity));
+                riskExposure = -Infinity; // Theoretical unlimited loss if price rises
+                breakEven = strikePrice + premium;
+            } else { // Put Option
+                riskExposure = (strikePrice - premium) * quantity * 100 + (fees * quantity); // Max loss is if price goes to 0
+                breakEven = strikePrice - premium;
             }
         }
-        let breakEven = 0;
-        if (assetType === 'Call Option') {
-            breakEven = strikePrice + premium;
-        } else {
-            breakEven = strikePrice - premium;
-        }
-        return { maxProfit, maxLoss, breakEven };
     }
+    
+    // Return all calculated metrics
+    return { investedAmount, premiumIncome, riskExposure, breakEven };
 };

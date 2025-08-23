@@ -67,6 +67,7 @@ export const renderTransactionList = () => {
         
         const transactionItem = document.createElement('div');
         transactionItem.className = 'bg-neutral-card p-4 rounded-lg shadow-subtle space-y-4 cursor-pointer';
+        
         transactionItem.innerHTML = `
             <div class="flex items-center justify-between" data-id="${t.id}" data-action="toggle-details">
                 <div class="flex flex-col">
@@ -75,7 +76,7 @@ export const renderTransactionList = () => {
                         <span class="ml-4 px-3 py-1 rounded-full text-xs font-semibold ${assetTypeClass}">${t.assetType} - ${t.action}</span>
                     </div>
                     <div class="text-sm text-gray-500 mt-1">
-                            <span>Qty: ${t.quantity}</span> | <span>${priceInfo}</span> | <span>${t.transactionDate}</span> 
+                        <span>Qty: ${t.quantity}</span> | <span>${priceInfo}</span> | <span>${t.transactionDate}</span>
                     </div>
                 </div>
                 <div class="flex items-center text-gray-500">
@@ -98,25 +99,67 @@ export const renderTransactionList = () => {
                     <div><span class="font-bold text-neutral-text">Fees:</span> ${t.fees} ${t.currency}</div>
                     `}
                 </div>
-
                 <div class="mt-4 pt-4 border-t border-gray-200">
                     <h4 class="text-lg font-bold text-gray-700 mb-2">Key Metrics</h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center">
-                            <span class="text-sm text-gray-500">Max Profit</span>
-                            <span class="font-bold text-base ${metrics.maxProfit > 0 || metrics.maxProfit === Infinity ? 'text-logo-green' : 'text-neutral-text'}">${metrics.maxProfit === Infinity ? '∞' : metrics.maxProfit.toFixed(2) + ' ' + t.currency}</span>
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center relative group">
+                            <div class="flex items-center space-x-1">
+                                <span class="text-sm text-gray-500">Invested Amount</span>
+                                <span class="tooltip-container">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="invested-amount">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
+                                    </svg>
+                                    <span id="invested-amount-tooltip" class="tooltip-text">
+                                        This is the total amount of cash spent to open a position, including all trading fees.
+                                    </span>
+                                </span>
+                            </div>
+                            <span class="font-bold text-base text-neutral-text">${metrics.investedAmount.toFixed(2)} ${t.currency}</span>
                         </div>
-                        <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center">
-                            <span class="text-sm text-gray-500">Max Loss</span>
-                            <span class="font-bold text-base ${metrics.maxLoss < 0 || metrics.maxLoss === -Infinity ? 'text-logo-red' : 'text-neutral-text'}">${metrics.maxLoss === -Infinity ? '-∞' : metrics.maxLoss.toFixed(2) + ' ' + t.currency}</span>
+                        <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center relative group">
+                            <div class="flex items-center space-x-1">
+                                <span class="text-sm text-gray-500">Premium Income</span>
+                                <span class="tooltip-container">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="premium-income">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
+                                    </svg>
+                                    <span id="premium-income-tooltip" class="tooltip-text">
+                                        The total cash received from selling an option contract, minus all trading fees.
+                                    </span>
+                                </span>
+                            </div>
+                            <span class="font-bold text-base text-neutral-text">${metrics.premiumIncome.toFixed(2)} ${t.currency}</span>
                         </div>
-                        <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center">
-                            <span class="text-sm text-gray-500">Breakeven</span>
+                        <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center relative group">
+                            <div class="flex items-center space-x-1">
+                                <span class="text-sm text-gray-500">Potential Loss</span>
+                                <span class="tooltip-container">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="potential-loss">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
+                                    </svg>
+                                    <span id="potential-loss-tooltip" class="tooltip-text">
+                                        The maximum possible loss for a single position. For some positions, this can be unlimited.
+                                    </span>
+                                </span>
+                            </div>
+                            <span class="font-bold text-base ${metrics.riskExposure === -Infinity ? 'text-logo-red' : 'text-neutral-text'}">${metrics.riskExposure === -Infinity ? '∞' : metrics.riskExposure.toFixed(2) + ' ' + t.currency}</span>
+                        </div>
+                        <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center relative group">
+                            <div class="flex items-center space-x-1">
+                                <span class="text-sm text-gray-500">Breakeven</span>
+                                <span class="tooltip-container">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="breakeven">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
+                                    </svg>
+                                    <span id="breakeven-tooltip" class="tooltip-text">
+                                        The price point at which a position begins to become profitable, including all fees.
+                                    </span>
+                                </span>
+                            </div>
                             <span class="font-bold text-base text-neutral-text">${metrics.breakEven.toFixed(2)} ${t.currency}</span>
                         </div>
                     </div>
                 </div>
-
                 <div class="mt-6 flex justify-end gap-2">
                     <button data-id="${t.id}" class="simulate-btn bg-logo-primary text-white px-4 py-2 rounded-full shadow hover:bg-opacity-80 transition-colors text-sm font-bold">
                         Simulate P&L
