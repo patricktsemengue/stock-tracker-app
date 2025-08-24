@@ -1,6 +1,7 @@
-import { calculateTransactionMetrics } from './metrics.js';
+import { calculateTransactionMetrics, calculateStockPNL, calculateOptionPNL } from './metrics.js';
 import { saveTransactions, getTransactions } from './storage.js';
-import { showToast } from './ui.js';
+import { showToast, showMessageBox, getForexRates } from './ui.js';
+import { getApiKeys } from './apiManager.js';
 
 let transactions = getTransactions();
 let editingTransactionId = null;
@@ -26,7 +27,6 @@ export const updateTransactionNamesBySymbol = (symbol, name) => {
     }
     transactions.forEach(t => {
         if (t.symbol === symbol) {
-        //if (t.symbol === symbol && (!t.name || t.name.trim() === '')) {
             t.name = name;
         }
     });
@@ -36,16 +36,185 @@ export const setEditingTransactionId = (id) => {
     editingTransactionId = id;
 };
 
-export const renderTransactionList = () => {
+export const renderTransactionList = async () => {
     transactionListDiv.innerHTML = '';
     const transactionCounts = {};
 
+    // This loop populates the transactionCounts object
     transactions.forEach(t => {
         transactionCounts[t.symbol] = (transactionCounts[t.symbol] || 0) + 1;
     });
 
+    const forexRates = await getForexRates();
+
+    let totalInvestedCashEUR = 0;
+    let totalPremiumIncomeEUR = 0;
+    let totalRiskExposureEUR = 0;
+
+    let totalStocksInvestedCashEUR = 0;
+    let totalStocksPremiumIncomeEUR = 0;
+    let totalStocksRiskExposureEUR = 0;
+
+    let totalOptionsInvestedCashEUR = 0;
+    let totalOptionsPremiumIncomeEUR = 0;
+    let totalOptionsRiskExposureEUR = 0;
+
+    const stockTransactions = transactions.filter(t => t.assetType === 'Stock');
+    const optionTransactions = transactions.filter(t => t.assetType !== 'Stock');
+
+    const optionSymbols = [...new Set(optionTransactions.map(t => t.symbol))];
+    const stockSymbols = [...new Set(stockTransactions.map(t => t.symbol))];
+
+    // Calculate metrics for stocks
+    for (const t of stockTransactions) {
+        const metrics = calculateTransactionMetrics(t);
+        let investedInEUR = metrics.investedAmount;
+        let riskInEUR = metrics.riskExposure;
+
+        if (t.currency === 'USD' && forexRates && forexRates.EURUSD) {
+            investedInEUR = metrics.investedAmount / forexRates.EURUSD;
+            riskInEUR = metrics.riskExposure === -Infinity ? -Infinity : metrics.riskExposure / forexRates.EURUSD;
+        } else if (t.currency === 'CHF' && forexRates && forexRates.EURCHF) {
+            investedInEUR = metrics.investedAmount / forexRates.EURCHF;
+            riskInEUR = metrics.riskExposure === -Infinity ? -Infinity : metrics.riskExposure / forexRates.EURCHF;
+        }
+
+        totalStocksInvestedCashEUR += investedInEUR;
+        totalStocksRiskExposureEUR += riskInEUR;
+    }
+    
+    // Calculate metrics for options
+    for (const symbol of optionSymbols) {
+        const symbolTransactions = optionTransactions.filter(t => t.symbol === symbol);
+        
+        let localInvestedCash = 0;
+        let localPremiumIncome = 0;
+        let localRiskExposure = 0;
+        let currency = 'EUR';
+        
+        if (symbolTransactions.length > 0) {
+            currency = symbolTransactions[0].currency;
+        }
+        
+        symbolTransactions.forEach(t => {
+            const metrics = calculateTransactionMetrics(t);
+            localInvestedCash += metrics.investedAmount;
+            localPremiumIncome += metrics.premiumIncome;
+        });
+
+        // Simulating combined P&L for risk assessment for options
+        const relevantPrice = symbolTransactions.some(t => t.underlyingAssetPrice) ? symbolTransactions.find(t => t.underlyingAssetPrice).underlyingAssetPrice : symbolTransactions[0].strikePrice;
+        const priceRange = 50; 
+        const numDataPoints = 201;
+        const priceStep = (relevantPrice * 2 * priceRange / 100) / (numDataPoints - 1);
+        const minPrice = relevantPrice - (relevantPrice * priceRange / 100);
+
+        let maxLossForSymbol = 0;
+        for (let i = 0; i < numDataPoints; i++) {
+            const simulatedPrice = minPrice + (i * priceStep);
+            let totalPnl = 0;
+            symbolTransactions.forEach(t => {
+                totalPnl += calculateOptionPNL(simulatedPrice, t);
+            });
+            if (totalPnl < maxLossForSymbol) {
+                maxLossForSymbol = totalPnl;
+            }
+        }
+        localRiskExposure = maxLossForSymbol;
+        
+        let investedInEUR = localInvestedCash;
+        let premiumInEUR = localPremiumIncome;
+        let riskInEUR = localRiskExposure;
+
+        if (currency === 'USD' && forexRates && forexRates.EURUSD) {
+            investedInEUR = localInvestedCash / forexRates.EURUSD;
+            premiumInEUR = localPremiumIncome / forexRates.EURUSD;
+            riskInEUR = localRiskExposure === -Infinity ? -Infinity : localRiskExposure / forexRates.EURUSD;
+        } else if (currency === 'CHF' && forexRates && forexRates.EURCHF) {
+            investedInEUR = localInvestedCash / forexRates.EURCHF;
+            premiumInEUR = localPremiumIncome / forexRates.EURCHF;
+            riskInEUR = localRiskExposure === -Infinity ? -Infinity : localRiskExposure / forexRates.EURCHF;
+        }
+        
+        totalOptionsInvestedCashEUR += investedInEUR;
+        totalOptionsPremiumIncomeEUR += premiumInEUR;
+        totalOptionsRiskExposureEUR += riskInEUR;
+    }
+    
+    // Summing up final totals from sub-categories
+    totalInvestedCashEUR = totalStocksInvestedCashEUR + totalOptionsInvestedCashEUR;
+    totalPremiumIncomeEUR = totalStocksPremiumIncomeEUR + totalOptionsPremiumIncomeEUR;
+    totalRiskExposureEUR = totalStocksRiskExposureEUR + totalOptionsRiskExposureEUR;
+    
+    const totalPortfolioValue = totalInvestedCashEUR + totalPremiumIncomeEUR;
+    
+    let totalRiskRewardRatio = (totalPremiumIncomeEUR - totalInvestedCashEUR) / Math.abs(totalRiskExposureEUR);
+    let riskRewardClass = 'text-neutral-text';
+    if (totalRiskExposureEUR < 0 && totalPremiumIncomeEUR - totalInvestedCashEUR > 0) {
+        riskRewardClass = totalRiskRewardRatio > 1 ? 'text-logo-green' : 'text-logo-red';
+    } else {
+        totalRiskRewardRatio = null;
+        riskRewardClass = 'text-neutral-text';
+    }
+
+    if (totalPortfolioValue > 0) {
+        document.getElementById('portfolio-summary-card').classList.remove('hidden');
+
+        document.getElementById('total-invested-cash').textContent = `${totalInvestedCashEUR.toFixed(2)} €`;
+        document.getElementById('total-premium-income').textContent = `${totalPremiumIncomeEUR.toFixed(2)} €`;
+        document.getElementById('total-risk-exposure').textContent = `${totalRiskExposureEUR === -Infinity ? '∞' : totalRiskExposureEUR.toFixed(2)} €`;
+        
+        document.getElementById('total-risk-reward-ratio').textContent = totalRiskRewardRatio !== null ? totalRiskRewardRatio.toFixed(2) : '--';
+        document.getElementById('total-risk-reward-ratio').className = `block text-2xl font-bold mt-1 ${riskRewardClass}`;
+
+        document.getElementById('total-premium-income').className = `block text-2xl font-bold mt-1 ${totalPremiumIncomeEUR > 0 ? 'text-logo-green' : 'text-logo-red'}`;
+        document.getElementById('total-risk-exposure').className = `block text-2xl font-bold mt-1 ${totalRiskExposureEUR === -Infinity || totalRiskExposureEUR < 0 ? 'text-logo-red' : 'text-neutral-text'}`;
+
+        document.getElementById('stocks-invested-cash').textContent = `${totalStocksInvestedCashEUR.toFixed(2)} €`;
+        document.getElementById('stocks-premium-income').textContent = `${totalStocksPremiumIncomeEUR.toFixed(2)} €`;
+        document.getElementById('stocks-risk-exposure').textContent = `${totalStocksRiskExposureEUR === -Infinity ? '∞' : totalStocksRiskExposureEUR.toFixed(2)} €`;
+        
+        document.getElementById('stocks-premium-income').className = `block font-bold text-neutral-text`;
+        document.getElementById('stocks-risk-exposure').className = `block font-bold ${totalStocksRiskExposureEUR === -Infinity || totalStocksRiskExposureEUR < 0 ? 'text-logo-red' : 'text-neutral-text'}`;
+
+        document.getElementById('options-invested-cash').textContent = `${totalOptionsInvestedCashEUR.toFixed(2)} €`;
+        document.getElementById('options-premium-income').textContent = `${totalOptionsPremiumIncomeEUR.toFixed(2)} €`;
+        document.getElementById('options-risk-exposure').textContent = `${totalOptionsRiskExposureEUR === -Infinity ? '∞' : totalOptionsRiskExposureEUR.toFixed(2)} €`;
+        
+        document.getElementById('options-premium-income').className = `block font-bold ${totalOptionsPremiumIncomeEUR > 0 ? 'text-logo-green' : 'text-logo-red'}`;
+        document.getElementById('options-risk-exposure').className = `block font-bold ${totalOptionsRiskExposureEUR === -Infinity || totalOptionsRiskExposureEUR < 0 ? 'text-logo-red' : 'text-neutral-text'}`;
+    } else {
+        document.getElementById('portfolio-summary-card').classList.add('hidden');
+    }
+
     transactions.forEach(t => {
         const metrics = calculateTransactionMetrics(t);
+        let investedInEUR = 0;
+        let premiumInEUR = 0;
+        let riskInEUR = 0;
+
+        if (t.currency === 'USD' && forexRates && forexRates.EURUSD) {
+            investedInEUR = metrics.investedAmount / forexRates.EURUSD;
+            premiumInEUR = metrics.premiumIncome / forexRates.EURUSD;
+            riskInEUR = metrics.riskExposure === -Infinity ? -Infinity : metrics.riskExposure / forexRates.EURUSD;
+        } else if (t.currency === 'CHF' && forexRates && forexRates.EURCHF) {
+            investedInEUR = metrics.investedAmount / forexRates.EURCHF;
+            premiumInEUR = metrics.premiumIncome / forexRates.EURCHF;
+            riskInEUR = metrics.riskExposure === -Infinity ? -Infinity : metrics.riskExposure / forexRates.EURCHF;
+        } else {
+            investedInEUR = metrics.investedAmount;
+            premiumInEUR = metrics.premiumIncome;
+            riskInEUR = metrics.riskExposure;
+        }
+
+        let portfolioShare = 0;
+        if (totalPortfolioValue > 0) {
+             if (t.action === 'Buy' || t.assetType === 'Stock') {
+                portfolioShare = (investedInEUR / totalPortfolioValue) * 100;
+            } else {
+                portfolioShare = (Math.abs(riskInEUR) / totalPortfolioValue) * 100;
+            }
+        }
         
         let assetTypeClass = '';
         if (t.assetType === 'Stock') {
@@ -55,6 +224,10 @@ export const renderTransactionList = () => {
         } else {
             assetTypeClass = 'text-logo-red bg-red-100';
         }
+
+        const investedClass = metrics.investedAmount > 0 ? 'text-neutral-text' : 'text-neutral-text';
+        const premiumClass = metrics.premiumIncome > 0 ? 'text-logo-green' : 'text-logo-red';
+        const riskClass = metrics.riskExposure === -Infinity || metrics.riskExposure < 0 ? 'text-logo-red' : 'text-neutral-text';
 
         let priceInfo = '';
         if (t.assetType === 'Stock') {
@@ -74,6 +247,7 @@ export const renderTransactionList = () => {
                     <div class="flex items-center">
                         <span class="text-xl font-bold text-neutral-text">${displayName}</span>
                         <span class="ml-4 px-3 py-1 rounded-full text-xs font-semibold ${assetTypeClass}">${t.assetType} - ${t.action}</span>
+                        <span class="ml-2 text-sm font-semibold text-gray-700">| ${portfolioShare.toFixed(2)}%</span>
                     </div>
                     <div class="text-sm text-gray-500 mt-1">
                         <span>Qty: ${t.quantity}</span> | <span>${priceInfo}</span> | <span>${t.transactionDate}</span>
@@ -114,7 +288,7 @@ export const renderTransactionList = () => {
                                     </span>
                                 </span>
                             </div>
-                            <span class="font-bold text-base text-neutral-text">${metrics.investedAmount.toFixed(2)} ${t.currency}</span>
+                            <span class="font-bold text-base ${investedClass}">${metrics.investedAmount.toFixed(2)} ${t.currency}</span>
                         </div>
                         <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center relative group">
                             <div class="flex items-center space-x-1">
@@ -128,7 +302,7 @@ export const renderTransactionList = () => {
                                     </span>
                                 </span>
                             </div>
-                            <span class="font-bold text-base text-neutral-text">${metrics.premiumIncome.toFixed(2)} ${t.currency}</span>
+                            <span class="font-bold text-base ${premiumClass}">${metrics.premiumIncome.toFixed(2)} ${t.currency}</span>
                         </div>
                         <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center relative group">
                             <div class="flex items-center space-x-1">
@@ -142,7 +316,7 @@ export const renderTransactionList = () => {
                                     </span>
                                 </span>
                             </div>
-                            <span class="font-bold text-base ${metrics.riskExposure === -Infinity ? 'text-logo-red' : 'text-neutral-text'}">${metrics.riskExposure === -Infinity ? '∞' : metrics.riskExposure.toFixed(2) + ' ' + t.currency}</span>
+                            <span class="font-bold text-base ${riskClass}">${metrics.riskExposure === -Infinity ? '∞' : metrics.riskExposure.toFixed(2) + ' ' + t.currency}</span>
                         </div>
                         <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center relative group">
                             <div class="flex items-center space-x-1">

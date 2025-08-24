@@ -17,7 +17,7 @@
             <img src="./files/logo-4ec1bb63-5616-432e-9955-2d15e8fc6fc3.jpeg" alt="Strady Logo" class="h-32">
         </header>
 
-        <div class="fixed bottom-8 right-8 flex flex-col space-y-4 z-40">
+        <div class="fixed top-8 right-8 flex flex-col space-y-4 z-40">
             <button id="add-transaction-fab" class="bg-logo-primary text-white p-4 rounded-full shadow-lg hover:bg-opacity-80 transition-colors flex items-center justify-center text-lg font-bold">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -48,6 +48,75 @@
                     <div id="selected-symbols-container" class="flex flex-wrap gap-2">
                         </div>
                 </section>
+                <section id="portfolio-summary-card" class="card hidden">
+            <h2 class="text-xl section-header text-neutral-text mb-4">Total Amounts (in EUR)</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <span class="text-sm text-gray-500">Invested Cash</span>
+                    <span id="total-invested-cash" class="block text-2xl font-bold text-neutral-text mt-1">0.00 €</span>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <span class="text-sm text-gray-500">Premium Income</span>
+                    <span id="total-premium-income" class="block text-2xl font-bold text-neutral-text mt-1">0.00 €</span>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <span class="text-sm text-gray-500">Risk Exposure</span>
+                    <span id="total-risk-exposure" class="block text-2xl font-bold text-neutral-text mt-1">0.00 €</span>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <span class="text-sm text-gray-500">Risk Reward Ratio</span>
+                    <span id="total-risk-reward-ratio" class="block text-2xl font-bold text-neutral-text mt-1">--</span>
+                </div>
+            </div>
+
+            <div class="mt-8 space-y-4">
+                <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
+                    <div class="flex justify-between items-center cursor-pointer" onclick="document.getElementById('stocks-metrics').classList.toggle('hidden')">
+                        <h3 class="text-lg font-bold text-neutral-text">Stocks</h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div id="stocks-metrics" class="hidden mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                        <div>
+                            <span class="text-sm text-gray-500">Invested Cash</span>
+                            <span id="stocks-invested-cash" class="block font-bold text-neutral-text">0.00 €</span>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Premium Income</span>
+                            <span id="stocks-premium-income" class="block font-bold text-neutral-text">0.00 €</span>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Risk Exposure</span>
+                            <span id="stocks-risk-exposure" class="block font-bold text-neutral-text">0.00 €</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
+                    <div class="flex justify-between items-center cursor-pointer" onclick="document.getElementById('options-metrics').classList.toggle('hidden')">
+                        <h3 class="text-lg font-bold text-neutral-text">Options</h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div id="options-metrics" class="hidden mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                        <div>
+                            <span class="text-sm text-gray-500">Invested Cash</span>
+                            <span id="options-invested-cash" class="block font-bold text-neutral-text">0.00 €</span>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Premium Income</span>
+                            <span id="options-premium-income" class="block font-bold text-neutral-text">0.00 €</span>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Risk Exposure</span>
+                            <span id="options-risk-exposure" class="block font-bold text-neutral-text">0.00 €</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
                 <section class="card">
                     <h2 class="text-xl section-header text-neutral-text mb-6">My Transactions</h2>
                     <div id="transaction-list" class="space-y-4">

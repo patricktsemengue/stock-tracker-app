@@ -1,7 +1,8 @@
-import { addOrUpdateTransaction, getTransactionById, setEditingTransactionId, renderTransactionList, exportTransactions, importTransactions, clearAllData } from './transactionManager.js';
+import { addOrUpdateTransaction, getTransactionById, setEditingTransactionId, renderTransactionList, exportTransactions, importTransactions, clearAllData, deleteTransaction } from './transactionManager.js';
 import { simulateAndDrawPnlChart, runStrategySimulation, updateStrategyPriceForSymbol, zoomChart } from './simulator.js';
 import { searchSymbol, lookupSymbol, addSelectedSymbol, removeSelectedSymbol, renderSelectedSymbols } from './searchAndSelect.js';
-import { saveApiKeys, initializeApiKeys, analyzeStrategyWithGemini } from './apiManager.js';
+import { saveApiKeys, initializeApiKeys, analyzeStrategyWithGemini, getApiKeys } from './apiManager.js';
+import { getForexRatesWithDate, saveForexRates } from './storage.js';
 
 // --- Helper Functions ---
 export const showMessageBox = (message) => {
@@ -82,8 +83,48 @@ const toggleFields = (assetTypeSelect, stockFields, optionFields) => {
     setDefaultFees(assetTypeSelect, document.getElementById('currency'), document.getElementById('stock-fees'), document.getElementById('option-fees'));
 };
 
+// --- API Functions ---
+export const getForexRates = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const cachedData = getForexRatesWithDate();
+
+    if (cachedData.date === today) {
+        return cachedData.rates;
+    }
+
+    const fmpApiKey = getApiKeys().fmpApiKey;
+    if (!fmpApiKey) {
+        console.error('FMP API Key is not set. Cannot fetch forex rates.');
+        return null;
+    }
+
+    const conversions = {
+        'EURUSD': 'EURUSD',
+        'EURCHF': 'EURCHF'
+    };
+    const rates = {};
+    const symbols = Object.keys(conversions);
+    const url = `https://financialmodelingprep.com/api/v3/quote/${symbols.join(',')}?apikey=${fmpApiKey}`;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`API call failed with status: ${response.status}`);
+        }
+        const data = await response.json();
+        data.forEach(item => {
+            rates[item.symbol] = item.price;
+        });
+        saveForexRates(rates);
+        return rates;
+    } catch (error) {
+        console.error('Error fetching forex rates:', error);
+        return null;
+    }
+};
+
 // --- Event Listeners and DOM Initialization ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // UI Elements must be selected here to ensure the DOM is ready
     const addTransactionFab = document.getElementById('add-transaction-fab');
     const addTransactionModal = document.getElementById('add-transaction-modal');
@@ -130,9 +171,8 @@ document.addEventListener('DOMContentLoaded', () => {
     transactionDateInput.value = today;
     optionExpiryInput.value = getThirdFridayOfNextMonth();
 
-    initializeApiKeys();
-    toggleFields(assetTypeSelect, stockFields, optionFields);
-    renderTransactionList();
+    await initializeApiKeys(); // Await API keys to be ready
+    await renderTransactionList(); // Then render the list
 
     addTransactionFab.addEventListener('click', () => {
         setEditingTransactionId(null);
