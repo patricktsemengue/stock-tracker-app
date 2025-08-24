@@ -58,7 +58,7 @@
                                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
                             </svg>
                             <span id="total-invested-cash-tooltip" class="tooltip-text">
-                                The total amount of cash spent on all "Buy" stock positions.
+                                The total amount of cash spent on all "Buy" stock and option positions.
                             </span>
                         </span>
                     </div>
@@ -100,7 +100,7 @@
                                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
                             </svg>
                             <span id="total-risk-reward-ratio-tooltip" class="tooltip-text">
-                                The ratio of total potential profit (Premium Income - Invested Cash) to total potential loss (Risk Exposure).
+                                The ratio of total potential profit (Premium Income + Realized Income - Invested Cash) to total potential loss (Risk Exposure).
                             </span>
                         </span>
                     </div>
@@ -133,18 +133,22 @@
                             <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                         </svg>
                     </div>
-                    <div id="stocks-metrics" class="hidden mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                    <div id="stocks-metrics" class="hidden mt-4 grid grid-cols-1 sm:grid-cols-4 gap-4 text-center">
                         <div>
                             <span class="text-sm text-gray-500">Invested Cash</span>
                             <span id="stocks-invested-cash" class="block font-bold text-neutral-text">0.00 €</span>
                         </div>
                         <div>
-                            <span class="text-sm text-gray-500">Premium Income</span>
-                            <span id="stocks-premium-income" class="block font-bold text-neutral-text">0.00 €</span>
+                            <span class="text-sm text-gray-500">Realized Income</span>
+                            <span id="stocks-realized-income" class="block font-bold text-neutral-text">0.00 €</span>
                         </div>
                         <div>
-                            <span class="text-sm text-gray-500">Risk Exposure</span>
-                            <span id="stocks-risk-exposure" class="block font-bold text-neutral-text">0.00 €</span>
+                            <span class="text-sm text-gray-500">Potential Loss</span>
+                            <span id="stocks-potential-loss" class="block font-bold text-neutral-text">0.00 €</span>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Portfolio Share</span>
+                            <span id="stocks-portfolio-share" class="block font-bold text-neutral-text">0.00%</span>
                         </div>
                     </div>
                 </div>
@@ -156,18 +160,36 @@
                             <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                         </svg>
                     </div>
-                    <div id="options-metrics" class="hidden mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                        <div>
-                            <span class="text-sm text-gray-500">Invested Cash</span>
-                            <span id="options-invested-cash" class="block font-bold text-neutral-text">0.00 €</span>
+                    <div id="options-metrics" class="hidden mt-4 space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                            <h4 class="col-span-full text-base font-bold text-gray-700">Options Bought</h4>
+                            <div>
+                                <span class="text-sm text-gray-500">Invested Cash</span>
+                                <span id="options-bought-invested-cash" class="block font-bold text-neutral-text">0.00 €</span>
+                            </div>
+                            <div>
+                                <span class="text-sm text-gray-500">Potential Loss</span>
+                                <span id="options-bought-potential-loss" class="block font-bold text-neutral-text">0.00 €</span>
+                            </div>
+                            <div>
+                                <span class="text-sm text-gray-500">Portfolio Share</span>
+                                <span id="options-bought-portfolio-share" class="block font-bold text-neutral-text">0.00%</span>
+                            </div>
                         </div>
-                        <div>
-                            <span class="text-sm text-gray-500">Premium Income</span>
-                            <span id="options-premium-income" class="block font-bold text-neutral-text">0.00 €</span>
-                        </div>
-                        <div>
-                            <span class="text-sm text-gray-500">Risk Exposure</span>
-                            <span id="options-risk-exposure" class="block font-bold text-neutral-text">0.00 €</span>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                            <h4 class="col-span-full text-base font-bold text-gray-700">Options Sold</h4>
+                            <div>
+                                <span class="text-sm text-gray-500">Premium Income</span>
+                                <span id="options-sold-premium-income" class="block font-bold text-neutral-text">0.00 €</span>
+                            </div>
+                            <div>
+                                <span class="text-sm text-gray-500">Potential Loss</span>
+                                <span id="options-sold-potential-loss" class="block font-bold text-neutral-text">0.00 €</span>
+                            </div>
+                            <div>
+                                <span class="text-sm text-gray-500">Portfolio Share</span>
+                                <span id="options-sold-portfolio-share" class="block font-bold text-neutral-text">0.00%</span>
+                            </div>
                         </div>
                     </div>
                 </div>

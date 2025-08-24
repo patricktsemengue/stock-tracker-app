@@ -19,7 +19,7 @@ export const calculateOptionPNL = (underlyingPrice, transaction) => {
 export const calculateTransactionMetrics = (transaction) => {
     let investedAmount = 0;
     let premiumIncome = 0;
-    let riskExposure = -Infinity;
+    let riskExposure = 0;
     let breakEven = 0;
     let realizedIncome = 0;
     
@@ -27,10 +27,11 @@ export const calculateTransactionMetrics = (transaction) => {
         const { action, transactionPrice, fees, quantity } = transaction;
         if (action === 'Buy') {
             investedAmount = (transactionPrice * quantity) + (fees * quantity);
-            riskExposure = -investedAmount; // Max loss is the entire investment if price goes to 0
+            riskExposure = -investedAmount;
             breakEven = transactionPrice + fees;
         } else { // Sell
-            riskExposure = 0; 
+            investedAmount = 0;
+            riskExposure = 0;
             breakEven = transactionPrice - fees;
             realizedIncome = (transactionPrice * quantity) - (fees * quantity);
         }
@@ -38,7 +39,8 @@ export const calculateTransactionMetrics = (transaction) => {
         const { action, assetType, strikePrice, premium, fees, quantity } = transaction;
         if (action === 'Buy') {
             investedAmount = (premium * quantity * 100) + (fees * quantity);
-            riskExposure = -investedAmount; // Max loss is the premium and fees paid
+            riskExposure = -investedAmount;
+            realizedIncome = 0;
             if (assetType === 'Call Option') {
                 breakEven = strikePrice + premium;
             } else { // Put Option
@@ -46,11 +48,12 @@ export const calculateTransactionMetrics = (transaction) => {
             }
         } else { // Sell
             premiumIncome = (premium * quantity * 100) - (fees * quantity);
+            realizedIncome = 0;
             if (assetType === 'Call Option') {
-                riskExposure = -Infinity; // Theoretical unlimited loss if price rises
+                riskExposure = -Infinity; // Unlimited theoretical loss for an uncovered call
                 breakEven = strikePrice + premium;
             } else { // Put Option
-                riskExposure = (strikePrice - premium) * quantity * 100 + (fees * quantity); // Max loss is if price goes to 0
+                riskExposure = -((strikePrice * quantity * 100) - premiumIncome);
                 breakEven = strikePrice - premium;
             }
         }
