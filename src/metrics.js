@@ -21,22 +21,24 @@ export const calculateTransactionMetrics = (transaction) => {
     let premiumIncome = 0;
     let riskExposure = -Infinity;
     let breakEven = 0;
+    let realizedIncome = 0;
     
     if (transaction.assetType === 'Stock') {
         const { action, transactionPrice, fees, quantity } = transaction;
         if (action === 'Buy') {
             investedAmount = (transactionPrice * quantity) + (fees * quantity);
-            riskExposure = investedAmount; // Max loss is the entire investment if price goes to 0
+            riskExposure = -investedAmount; // Max loss is the entire investment if price goes to 0
             breakEven = transactionPrice + fees;
         } else { // Sell
-            riskExposure = -Infinity; // Theoretical unlimited loss if price rises
+            riskExposure = 0; 
             breakEven = transactionPrice - fees;
+            realizedIncome = (transactionPrice * quantity) - (fees * quantity);
         }
     } else { // Options
         const { action, assetType, strikePrice, premium, fees, quantity } = transaction;
         if (action === 'Buy') {
             investedAmount = (premium * quantity * 100) + (fees * quantity);
-            riskExposure = investedAmount; // Max loss is the premium and fees paid
+            riskExposure = -investedAmount; // Max loss is the premium and fees paid
             if (assetType === 'Call Option') {
                 breakEven = strikePrice + premium;
             } else { // Put Option
@@ -55,5 +57,5 @@ export const calculateTransactionMetrics = (transaction) => {
     }
     
     // Return all calculated metrics
-    return { investedAmount, premiumIncome, riskExposure, breakEven };
+    return { investedAmount, premiumIncome, riskExposure, breakEven, realizedIncome };
 };

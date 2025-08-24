@@ -2,7 +2,7 @@ tailwind.config = {
         theme: {
           extend: {
             colors: {
-              'logo-bg': '#f7f4ec',
+              'logo-bg': '#FFF9EA', // Updated to the new color
               'logo-primary': '#2a5a54', // Dark teal from "Strady"
               'logo-green': '#6d9f82', // Light green from icon
               'logo-red': '#ef4444', // Red from arrow

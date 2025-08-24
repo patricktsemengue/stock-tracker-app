@@ -50,6 +50,7 @@ export const renderTransactionList = async () => {
     let totalInvestedCashEUR = 0;
     let totalPremiumIncomeEUR = 0;
     let totalRiskExposureEUR = 0;
+    let totalSoldStocksIncomeEUR = 0;
 
     let totalStocksInvestedCashEUR = 0;
     let totalStocksPremiumIncomeEUR = 0;
@@ -62,48 +63,22 @@ export const renderTransactionList = async () => {
     const stockTransactions = transactions.filter(t => t.assetType === 'Stock');
     const optionTransactions = transactions.filter(t => t.assetType !== 'Stock');
 
-    const optionSymbols = [...new Set(optionTransactions.map(t => t.symbol))];
-    const stockSymbols = [...new Set(stockTransactions.map(t => t.symbol))];
+    const allSymbols = [...new Set(transactions.map(t => t.symbol))];
 
-    // Calculate metrics for stocks
-    for (const t of stockTransactions) {
-        const metrics = calculateTransactionMetrics(t);
-        let investedInEUR = metrics.investedAmount;
-        let riskInEUR = metrics.riskExposure;
-
-        if (t.currency === 'USD' && forexRates && forexRates.EURUSD) {
-            investedInEUR = metrics.investedAmount / forexRates.EURUSD;
-            riskInEUR = metrics.riskExposure === -Infinity ? -Infinity : metrics.riskExposure / forexRates.EURUSD;
-        } else if (t.currency === 'CHF' && forexRates && forexRates.EURCHF) {
-            investedInEUR = metrics.investedAmount / forexRates.EURCHF;
-            riskInEUR = metrics.riskExposure === -Infinity ? -Infinity : metrics.riskExposure / forexRates.EURCHF;
-        }
-
-        totalStocksInvestedCashEUR += investedInEUR;
-        totalStocksRiskExposureEUR += riskInEUR;
-    }
-    
-    // Calculate metrics for options
-    for (const symbol of optionSymbols) {
-        const symbolTransactions = optionTransactions.filter(t => t.symbol === symbol);
-        
+    // Calculate aggregated metrics for each symbol
+    for (const symbol of allSymbols) {
+        const symbolTransactions = transactions.filter(t => t.symbol === symbol);
         let localInvestedCash = 0;
         let localPremiumIncome = 0;
+        let localRealizedIncome = 0;
         let localRiskExposure = 0;
         let currency = 'EUR';
         
         if (symbolTransactions.length > 0) {
             currency = symbolTransactions[0].currency;
         }
-        
-        symbolTransactions.forEach(t => {
-            const metrics = calculateTransactionMetrics(t);
-            localInvestedCash += metrics.investedAmount;
-            localPremiumIncome += metrics.premiumIncome;
-        });
 
-        // Simulating combined P&L for risk assessment for options
-        const relevantPrice = symbolTransactions.some(t => t.underlyingAssetPrice) ? symbolTransactions.find(t => t.underlyingAssetPrice).underlyingAssetPrice : symbolTransactions[0].strikePrice;
+        const relevantPrice = symbolTransactions.some(t => t.underlyingAssetPrice) ? symbolTransactions.find(t => t.underlyingAssetPrice).underlyingAssetPrice : (symbolTransactions[0].transactionPrice || symbolTransactions[0].strikePrice);
         const priceRange = 50; 
         const numDataPoints = 201;
         const priceStep = (relevantPrice * 2 * priceRange / 100) / (numDataPoints - 1);
@@ -114,37 +89,47 @@ export const renderTransactionList = async () => {
             const simulatedPrice = minPrice + (i * priceStep);
             let totalPnl = 0;
             symbolTransactions.forEach(t => {
-                totalPnl += calculateOptionPNL(simulatedPrice, t);
+                if (t.assetType === 'Stock') {
+                    totalPnl += calculateStockPNL(simulatedPrice, t);
+                } else {
+                    totalPnl += calculateOptionPNL(simulatedPrice, t);
+                }
             });
             if (totalPnl < maxLossForSymbol) {
                 maxLossForSymbol = totalPnl;
             }
         }
         localRiskExposure = maxLossForSymbol;
-        
+
+        symbolTransactions.forEach(t => {
+            const metrics = calculateTransactionMetrics(t);
+            localInvestedCash += metrics.investedAmount;
+            localPremiumIncome += metrics.premiumIncome;
+            localRealizedIncome += metrics.realizedIncome;
+        });
+
         let investedInEUR = localInvestedCash;
         let premiumInEUR = localPremiumIncome;
+        let realizedInEUR = localRealizedIncome;
         let riskInEUR = localRiskExposure;
 
         if (currency === 'USD' && forexRates && forexRates.EURUSD) {
             investedInEUR = localInvestedCash / forexRates.EURUSD;
             premiumInEUR = localPremiumIncome / forexRates.EURUSD;
+            realizedInEUR = localRealizedIncome / forexRates.EURUSD;
             riskInEUR = localRiskExposure === -Infinity ? -Infinity : localRiskExposure / forexRates.EURUSD;
         } else if (currency === 'CHF' && forexRates && forexRates.EURCHF) {
             investedInEUR = localInvestedCash / forexRates.EURCHF;
             premiumInEUR = localPremiumIncome / forexRates.EURCHF;
+            realizedInEUR = localRealizedIncome / forexRates.EURCHF;
             riskInEUR = localRiskExposure === -Infinity ? -Infinity : localRiskExposure / forexRates.EURCHF;
         }
         
-        totalOptionsInvestedCashEUR += investedInEUR;
-        totalOptionsPremiumIncomeEUR += premiumInEUR;
-        totalOptionsRiskExposureEUR += riskInEUR;
+        totalInvestedCashEUR += investedInEUR;
+        totalPremiumIncomeEUR += premiumInEUR;
+        totalSoldStocksIncomeEUR += realizedInEUR;
+        totalRiskExposureEUR += riskInEUR;
     }
-    
-    // Summing up final totals from sub-categories
-    totalInvestedCashEUR = totalStocksInvestedCashEUR + totalOptionsInvestedCashEUR;
-    totalPremiumIncomeEUR = totalStocksPremiumIncomeEUR + totalOptionsPremiumIncomeEUR;
-    totalRiskExposureEUR = totalStocksRiskExposureEUR + totalOptionsRiskExposureEUR;
     
     const totalPortfolioValue = totalInvestedCashEUR + totalPremiumIncomeEUR;
     
@@ -183,6 +168,15 @@ export const renderTransactionList = async () => {
         
         document.getElementById('options-premium-income').className = `block font-bold ${totalOptionsPremiumIncomeEUR > 0 ? 'text-logo-green' : 'text-logo-red'}`;
         document.getElementById('options-risk-exposure').className = `block font-bold ${totalOptionsRiskExposureEUR === -Infinity || totalOptionsRiskExposureEUR < 0 ? 'text-logo-red' : 'text-neutral-text'}`;
+
+        if (totalSoldStocksIncomeEUR > 0) {
+            document.getElementById('sold-stock-income-card').classList.remove('hidden');
+            document.getElementById('total-sold-stock-income').textContent = `${totalSoldStocksIncomeEUR.toFixed(2)} €`;
+            document.getElementById('total-sold-stock-income').className = `block text-2xl font-bold text-logo-green mt-1`;
+        } else {
+            document.getElementById('sold-stock-income-card').classList.add('hidden');
+        }
+
     } else {
         document.getElementById('portfolio-summary-card').classList.add('hidden');
     }
@@ -228,6 +222,7 @@ export const renderTransactionList = async () => {
         const investedClass = metrics.investedAmount > 0 ? 'text-neutral-text' : 'text-neutral-text';
         const premiumClass = metrics.premiumIncome > 0 ? 'text-logo-green' : 'text-logo-red';
         const riskClass = metrics.riskExposure === -Infinity || metrics.riskExposure < 0 ? 'text-logo-red' : 'text-neutral-text';
+        const realizedIncomeClass = metrics.realizedIncome > 0 ? 'text-logo-green' : 'text-neutral-text';
 
         let priceInfo = '';
         if (t.assetType === 'Stock') {
@@ -276,6 +271,36 @@ export const renderTransactionList = async () => {
                 <div class="mt-4 pt-4 border-t border-gray-200">
                     <h4 class="text-lg font-bold text-gray-700 mb-2">Key Metrics</h4>
                     <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    ${t.assetType === 'Stock' && t.action === 'Sell' ? `
+                        <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center relative group">
+                            <div class="flex items-center space-x-1">
+                                <span class="text-sm text-gray-500">Realized Income</span>
+                                <span class="tooltip-container">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="realized-income">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
+                                    </svg>
+                                    <span id="realized-income-tooltip" class="tooltip-text">
+                                        The total income received from a sold stock position, minus all trading fees.
+                                    </span>
+                                </span>
+                            </div>
+                            <span class="font-bold text-base ${realizedIncomeClass}">${metrics.realizedIncome.toFixed(2)} ${t.currency}</span>
+                        </div>
+                        <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center relative group">
+                            <div class="flex items-center space-x-1">
+                                <span class="text-sm text-gray-500">Potential Loss</span>
+                                <span class="tooltip-container">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="potential-loss">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
+                                    </svg>
+                                    <span id="potential-loss-tooltip" class="tooltip-text">
+                                        The maximum possible loss for a single position. For sold stocks, this is 0.
+                                    </span>
+                                </span>
+                            </div>
+                            <span class="font-bold text-base ${riskClass}">${metrics.riskExposure.toFixed(2) + ' ' + t.currency}</span>
+                        </div>
+                    ` : `
                         <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center relative group">
                             <div class="flex items-center space-x-1">
                                 <span class="text-sm text-gray-500">Invested Amount</span>
@@ -318,6 +343,7 @@ export const renderTransactionList = async () => {
                             </div>
                             <span class="font-bold text-base ${riskClass}">${metrics.riskExposure === -Infinity ? '∞' : metrics.riskExposure.toFixed(2) + ' ' + t.currency}</span>
                         </div>
+                    `}
                         <div class="bg-gray-100 p-3 rounded-lg flex flex-col justify-center items-center relative group">
                             <div class="flex items-center space-x-1">
                                 <span class="text-sm text-gray-500">Breakeven</span>

@@ -450,18 +450,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    if (document.getElementById('zoom-in-strategy-btn')) {
-        document.getElementById('zoom-in-strategy-btn').addEventListener('click', () => {
-            zoomChart('strategy-chart', 0.9);
-        });
-    }
-
-    if (document.getElementById('zoom-out-strategy-btn')) {
-        document.getElementById('zoom-out-strategy-btn').addEventListener('click', () => {
-            zoomChart('strategy-chart', 1.1);
-        });
-    }
-
     if (analyzeStrategyBtn) {
         analyzeStrategyBtn.addEventListener('click', async () => {
             const symbol = strategySymbolSelect.value;
