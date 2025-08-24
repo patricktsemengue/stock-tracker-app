@@ -14,3 +14,11 @@ export const saveForexRates = (rates) => {
     const today = new Date().toISOString().split('T')[0];
     localStorage.setItem('forexRates', JSON.stringify({ rates: rates, date: today }));
 };
+
+export const getSavedSymbols = () => {
+    return JSON.parse(localStorage.getItem('selectedSymbols')) || [];
+};
+
+export const saveSymbols = (symbols) => {
+    localStorage.setItem('selectedSymbols', JSON.stringify(symbols));
+};

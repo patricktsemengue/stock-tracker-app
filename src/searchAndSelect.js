@@ -1,7 +1,7 @@
 import { apiKeys, getApiKeys } from './apiManager.js';
-import { getTransactions } from './storage.js';
+import { getTransactions, getSavedSymbols, saveSymbols } from './storage.js';
 
-let selectedSymbols = [];
+let selectedSymbols = getSavedSymbols();
 let searchTimeout = null;
 
 const searchResultsContainer = document.getElementById('search-results-container');
@@ -107,12 +107,14 @@ export const addSelectedSymbol = (symbol, name) => {
     const existingIndex = selectedSymbols.findIndex(s => s.symbol === symbol);
     if (existingIndex === -1) {
         selectedSymbols.push({ symbol, name });
+        saveSymbols(selectedSymbols);
         renderSelectedSymbols();
     }
 };
 
 export const removeSelectedSymbol = (symbolToRemove) => {
     selectedSymbols = selectedSymbols.filter(s => s.symbol !== symbolToRemove);
+    saveSymbols(selectedSymbols);
     renderSelectedSymbols();
 };
 
@@ -142,3 +144,5 @@ export const renderSelectedSymbols = () => {
         selectedSymbolsSection.classList.add('hidden');
     }
 };
+
+renderSelectedSymbols();
