@@ -1,8 +1,9 @@
 import { addOrUpdateTransaction, getTransactionById, setEditingTransactionId, renderTransactionList, exportTransactions, importTransactions, clearAllData, deleteTransaction } from './transactionManager.js';
 import { simulateAndDrawPnlChart, runStrategySimulation, updateStrategyPriceForSymbol, zoomChart } from './simulator.js';
 import { searchSymbol, lookupSymbol, addSelectedSymbol, removeSelectedSymbol, renderSelectedSymbols } from './searchAndSelect.js';
-import { saveApiKeys, initializeApiKeys, analyzeStrategyWithGemini, getApiKeys } from './apiManager.js';
-import { getForexRatesWithDate, saveForexRates } from './storage.js';
+import { saveApiKeys, initializeAppConfig, analyzeStrategyWithGemini, getApiKeys , fetchFinnhubQuote } from './apiManager.js';
+import { getForexRatesWithDate, saveForexRates, saveRecentlySearched, getRecentlySearched } from './storage.js';
+import { calculateStockPNL, calculateOptionPNL } from './metrics.js';
 
 // --- Helper Functions ---
 export const showMessageBox = (message) => {
@@ -123,9 +124,286 @@ export const getForexRates = async () => {
     }
 };
 
+// --- Discovery Card Logic ---
+const discoveryCardModal = document.getElementById('discovery-card-modal');
+const discoveryCardContent = document.getElementById('discovery-card-content');
+let activeQuoteData = null; 
+
+const renderDiscoveryCardContent = (symbol, name, quote) => {
+    const changeColor = quote.change >= 0 ? 'text-logo-green' : 'text-logo-red';
+    return `
+        <div class="border-b pb-4">
+            <div class="flex justify-between items-center">
+                <div><h2 class="text-3xl font-bold text-gray-800">${symbol}</h2><p class="text-gray-500">${name}</p></div>
+                <div class="text-right"><p class="text-3xl font-bold text-logo-primary">$${quote.current.toFixed(2)}</p><p class="text-sm font-semibold ${changeColor}">${quote.change.toFixed(2)} (${quote.percent_change.toFixed(2)}%)</p></div>
+            </div>
+            <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm text-center">
+                <div><p class="text-gray-400">Open</p><p class="font-semibold text-gray-700">$${quote.open.toFixed(2)}</p></div>
+                <div><p class="text-gray-400">High</p><p class="font-semibold text-gray-700">$${quote.high.toFixed(2)}</p></div>
+                <div><p class="text-gray-400">Low</p><p class="font-semibold text-gray-700">$${quote.low.toFixed(2)}</p></div>
+                <div><p class="text-gray-400">Prev. Close</p><p class="font-semibold text-gray-700">$${quote.previous_close.toFixed(2)}</p></div>
+            </div>
+        </div>
+        <div class="relative">
+            <div id="discovery-carousel-wrapper"></div>
+            <button id="discovery-prevBtn" class="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-8 bg-gray-200 p-2 rounded-full hover:bg-gray-300"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+            <button id="discovery-nextBtn" class="absolute top-1/2 right-0 transform -translate-y-1/2 translate-x-8 bg-gray-200 p-2 rounded-full hover:bg-gray-300"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+        </div>
+    `;
+};
+
+
+
+const createPnlChart = (canvasId, data, labels, breakEven) => {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    if (window.discoveryCharts && window.discoveryCharts[canvasId]) {
+        window.discoveryCharts[canvasId].destroy();
+    }
+    window.discoveryCharts = window.discoveryCharts || {};
+    window.discoveryCharts[canvasId] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'P&L',
+                data,
+                borderColor: '#2a5a54',
+                fill: true,
+                tension: 0.1,
+                pointRadius: 0,
+                backgroundColor: context => {
+                    const chart = context.chart;
+                    const { ctx, chartArea, scales } = chart;
+                    if (!chartArea) {
+                        return null;
+                    }
+                    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                    const zero = scales.y.getPixelForValue(0);
+                    const yZero = (zero - chartArea.top) / (chartArea.bottom - chartArea.top);
+                    gradient.addColorStop(0, 'rgba(75, 192, 192, 0.2)');
+                    gradient.addColorStop(yZero, 'rgba(75, 192, 192, 0.2)');
+                    gradient.addColorStop(yZero, 'rgba(255, 99, 132, 0.2)');
+                    gradient.addColorStop(1, 'rgba(255, 99, 132, 0.2)');
+                    return gradient;
+                }
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                annotation: {
+                    annotations: {
+                        line1: {
+                            type: 'line',
+                            yMin: 0,
+                            yMax: 0,
+                            borderColor: 'rgb(255, 99, 132)',
+                            borderWidth: 2,
+                        },
+                        breakeven: {
+                            type: 'line',
+                            xMin: breakEven,
+                            xMax: breakEven,
+                            borderColor: 'rgb(54, 162, 235)',
+                            borderWidth: 2,
+                            borderDash: [10, 5],
+                            label: {
+                                content: 'Breakeven',
+                                enabled: true,
+                                position: 'start'
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { display: true },
+                y: { display: true }
+            }
+        }
+    });
+};
+
+const updatePnlChart = (slide) => {
+    const quantity = parseFloat(slide.querySelector('.quantity-input').value) || 0;
+    const type = slide.dataset.type;
+    const strikePrice = activeQuoteData.current;
+    const canvasId = slide.querySelector('canvas').id;
+
+    const range = strikePrice * 0.5;
+    const labels = Array.from({ length: 51 }, (_, i) => (strikePrice - range + (i * range / 25)).toFixed(2));
+    let pnlData = [];
+    let breakEven = 0;
+
+    if (type === 'Buy Stock') {
+        const transactionPrice = parseFloat(slide.querySelector('.transaction-price-input').value) || strikePrice;
+        const transaction = { action: 'Buy', quantity, transactionPrice, fees: 0 };
+        pnlData = labels.map(price => calculateStockPNL(parseFloat(price), transaction));
+        breakEven = transactionPrice;
+    } else {
+        const premium = parseFloat(slide.querySelector('.premium-input').value) || strikePrice * 0.05;
+        let transaction;
+        if (type === 'Sell Call') {
+            transaction = { action: 'Sell', assetType: 'Call Option', quantity, strikePrice, premium, fees: 0 };
+            breakEven = strikePrice + premium;
+        } else if (type === 'Sell Put') {
+            transaction = { action: 'Sell', assetType: 'Put Option', quantity, strikePrice, premium, fees: 0 };
+            breakEven = strikePrice - premium;
+        }
+        pnlData = labels.map(price => calculateOptionPNL(parseFloat(price), transaction));
+    }
+    createPnlChart(canvasId, pnlData, labels, breakEven);
+};
+
+
+const updateDiscoveryCardMetrics = (slide) => {
+    const quantity = parseFloat(slide.querySelector('.quantity-input').value) || 0;
+    const type = slide.dataset.type;
+    const price = activeQuoteData.current;
+    
+    let cashImpact = 0, potentialLoss = 'N/A', breakEven = 'N/A';
+    
+    if (type === 'Buy Stock') {
+        const transactionPrice = parseFloat(slide.querySelector('.transaction-price-input').value) || price;
+        cashImpact = -(transactionPrice * quantity);
+        potentialLoss = transactionPrice * quantity;
+        breakEven = transactionPrice;
+    } else if (type === 'Sell Call') {
+        const premium = parseFloat(slide.querySelector('.premium-input').value) || price * 0.05;
+        cashImpact = premium * 100 * quantity;
+        potentialLoss = 'Unlimited';
+        breakEven = price + premium;
+    } else if (type === 'Sell Put') {
+        const premium = parseFloat(slide.querySelector('.premium-input').value) || price * 0.05;
+        cashImpact = premium * 100 * quantity;
+        potentialLoss = (price - premium) * 100 * quantity;
+        breakEven = price - premium;
+    }
+
+    const cashMetric = slide.querySelector('.metric-cash');
+    const lossMetric = slide.querySelector('.metric-loss');
+    
+    cashMetric.textContent = `${cashImpact >= 0 ? '+' : ''}${cashImpact.toFixed(2)}`;
+    cashMetric.classList.toggle('text-logo-green', cashImpact >= 0);
+    cashMetric.classList.toggle('text-logo-red', cashImpact < 0);
+
+    lossMetric.textContent = typeof potentialLoss === 'string' ? potentialLoss : potentialLoss.toFixed(2);
+    lossMetric.classList.toggle('text-logo-red', potentialLoss === 'Unlimited' || potentialLoss > 0);
+
+    slide.querySelector('.metric-breakeven').textContent = typeof breakEven === 'string' ? breakEven : breakEven.toFixed(2);
+    
+    updatePnlChart(slide);
+};
+
+export const showDiscoveryCard = async (symbol, name) => {
+    discoveryCardModal.classList.remove('hidden');
+    discoveryCardModal.classList.add('flex');
+
+    const cachedSymbol = getRecentlySearched().find(s => s.symbol === symbol);
+
+    if (cachedSymbol && cachedSymbol.price) {
+        const tempQuote = { current: cachedSymbol.price, change: 0, percent_change: 0, open: 0, high: 0, low: 0, previous_close: 0 };
+        discoveryCardContent.innerHTML = renderDiscoveryCardContent(symbol, name, tempQuote);
+    } else {
+        discoveryCardContent.innerHTML = `<p class="text-center">Fetching real-time data for ${symbol}...</p>`;
+    }
+
+    const quote = await fetchFinnhubQuote(symbol);
+    if (!quote) {
+        if (!cachedSymbol) {
+            discoveryCardContent.innerHTML = `<p class="text-center text-logo-red">Could not fetch data for ${symbol}. Please check your API key or the symbol.</p>`;
+        }
+        return;
+    }
+    
+    activeQuoteData = quote;
+    saveRecentlySearched(symbol, name, quote.current);
+    discoveryCardContent.innerHTML = renderDiscoveryCardContent(symbol, name, quote);
+
+    const carouselWrapper = document.getElementById('discovery-carousel-wrapper');
+    const slidesData = [
+        { type: 'Buy Stock', color: 'text-logo-blue', chartId: 'pnlChartStock' },
+        { type: 'Sell Call', color: 'text-logo-green', chartId: 'pnlChartCall' },
+        { type: 'Sell Put', color: 'text-logo-red', chartId: 'pnlChartPut' }
+    ];
+
+    slidesData.forEach(slideData => {
+        const slide = document.createElement('div');
+        slide.className = 'carousel-slide';
+        slide.dataset.type = slideData.type;
+
+        let editableField = '';
+        if (slideData.type === 'Buy Stock') {
+            editableField = `<div><label class="block text-sm font-medium text-gray-600 mb-1">Transaction Price</label><input type="number" class="w-full p-2 border border-gray-300 rounded-md transaction-price-input" value="${activeQuoteData.current.toFixed(2)}"></div>`;
+        } else {
+            editableField = `<div><label class="block text-sm font-medium text-gray-600 mb-1">Premium</label><input type="number" class="w-full p-2 border border-gray-300 rounded-md premium-input" value="${(activeQuoteData.current * 0.05).toFixed(2)}"></div>`;
+        }
+
+        slide.innerHTML = `
+            <div class="space-y-4">
+                <h3 class="text-xl font-bold text-center ${slideData.color}">${slideData.type}</h3>
+                <div><label class="block text-sm font-medium text-gray-600 mb-1">Quantity</label><input type="number" class="w-full p-2 border border-gray-300 rounded-md quantity-input" value="100"></div>
+                ${editableField}
+                <div class="grid grid-cols-3 gap-3 text-center">
+                    <div><p class="text-xs text-gray-500">Cash Impact</p><p class="font-bold text-base metric-cash">--</p></div>
+                    <div><p class="text-xs text-gray-500">Potential Loss</p><p class="font-bold text-base metric-loss">--</p></div>
+                    <div><p class="text-xs text-gray-500">Break-even</p><p class="font-bold text-base metric-breakeven">--</p></div>
+                </div>
+                <div class="h-48"><canvas id="${slideData.chartId}"></canvas></div>
+                <button class="w-full bg-logo-primary text-white py-3 rounded-lg font-bold hover:bg-opacity-90 transition record-btn">Record Transaction</button>
+            </div>
+        `;
+        carouselWrapper.appendChild(slide);
+        
+        updateDiscoveryCardMetrics(slide);
+    });
+    
+    const slides = document.querySelectorAll('.carousel-slide');
+    let currentSlide = 0;
+    const showSlide = (index) => {
+        slides.forEach((s, i) => s.style.display = i === index ? 'block' : 'none');
+        updateDiscoveryCardMetrics(slides[index]);
+    };
+    
+    document.getElementById('discovery-nextBtn').addEventListener('click', () => { currentSlide = (currentSlide + 1) % slides.length; showSlide(currentSlide); });
+    document.getElementById('discovery-prevBtn').addEventListener('click', () => { currentSlide = (currentSlide - 1 + slides.length) % slides.length; showSlide(currentSlide); });
+    
+    carouselWrapper.addEventListener('input', (e) => {
+        if (e.target.classList.contains('quantity-input') || e.target.classList.contains('transaction-price-input') || e.target.classList.contains('premium-input')) {
+            updateDiscoveryCardMetrics(e.target.closest('.carousel-slide'));
+        }
+    });
+
+    carouselWrapper.addEventListener('click', (e) => {
+        if (e.target.classList.contains('record-btn')) {
+            const slide = e.target.closest('.carousel-slide');
+            const transactionType = slide.dataset.type;
+            const quantity = slide.querySelector('.quantity-input').value;
+            
+            document.getElementById('add-transaction-fab').click();
+            document.getElementById('symbol').value = symbol;
+            document.getElementById('name').value = name;
+            document.getElementById('quantity').value = quantity;
+
+            if (transactionType === 'Buy Stock') {
+                document.getElementById('stock-price').value = slide.querySelector('.transaction-price-input').value;
+            } else {
+                document.getElementById('option-premium').value = slide.querySelector('.premium-input').value;
+                document.getElementById('option-strike').value = activeQuoteData.current.toFixed(2);
+            }
+
+            discoveryCardModal.classList.add('hidden');
+        }
+    });
+
+    showSlide(0);
+};
+
+
 // --- Event Listeners and DOM Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
-    // UI Elements must be selected here to ensure the DOM is ready
     const addTransactionFab = document.getElementById('add-transaction-fab');
     const addTransactionModal = document.getElementById('add-transaction-modal');
     const closeTransactionModalBtn = document.getElementById('close-transaction-modal');
@@ -171,8 +449,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     transactionDateInput.value = today;
     optionExpiryInput.value = getThirdFridayOfNextMonth();
 
-    await initializeApiKeys(); // Await API keys to be ready
-    await renderTransactionList(); // Then render the list
+    await initializeAppConfig();
+    renderSelectedSymbols();
+    await renderTransactionList();
 
     addTransactionFab.addEventListener('click', () => {
         setEditingTransactionId(null);
@@ -235,7 +514,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (resultDiv) {
             const symbol = resultDiv.dataset.symbol;
             const name = resultDiv.dataset.name;
-            addSelectedSymbol(symbol, name);
+            const price = resultDiv.dataset.price;
+            addSelectedSymbol(symbol, name, price ? parseFloat(price) : null);
             searchResultsContainer.innerHTML = '';
             symbolSearchInput.value = '';
         }
@@ -250,9 +530,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (card) {
             const symbol = card.dataset.symbol;
             const name = card.dataset.name;
-            transactionSymbolInput.value = symbol;
-            transactionNameInput.value = name;
-            addTransactionFab.click();
+            showDiscoveryCard(symbol, name);
         }
     });
 
@@ -263,6 +541,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (resultDiv) {
             transactionSymbolInput.value = resultDiv.dataset.symbol;
             transactionNameInput.value = resultDiv.dataset.name;
+            addSelectedSymbol(resultDiv.dataset.symbol, resultDiv.dataset.name, resultDiv.dataset.price ? parseFloat(resultDiv.dataset.price) : null);
             transactionSymbolSearchResults.innerHTML = '';
         }
     });
@@ -272,7 +551,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const assetType = assetTypeSelect.value;
         const transactionData = {
-            id: null, // This ID is set by the transaction manager
+            id: null,
             assetType: assetType,
             action: document.getElementById('action').value,
             symbol: document.getElementById('symbol').value.toUpperCase(),
@@ -384,11 +663,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
             tooltipContainer.classList.toggle('show');
-            e.stopPropagation(); // Prevent the main transaction card from expanding/collapsing
+            e.stopPropagation();
         }
     });
     
-    // Close tooltips when clicking anywhere else on the document
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.tooltip-container')) {
             const openTooltips = document.querySelectorAll('.tooltip-container.show');
@@ -500,4 +778,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     assetTypeSelect.addEventListener('change', () => toggleFields(assetTypeSelect, stockFields, optionFields));
     currencySelect.addEventListener('change', () => setDefaultFees(assetTypeSelect, currencySelect, stockFeesInput, optionFeesInput));
+
+    document.getElementById('close-discovery-card').addEventListener('click', () => {
+        discoveryCardModal.classList.add('hidden');
+        renderSelectedSymbols();
+    });
+
 });

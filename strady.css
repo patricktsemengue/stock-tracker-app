@@ -1,103 +1,106 @@
 body {
-            font-family: 'Inter', sans-serif;
-            background-color: #FFF9EA; 
-            color: #1f2937;
-        }
+    font-family: 'Inter', sans-serif;
+    background-color: #FFF9EA;
+    color: #1f2937;
+}
 
-        .section-header {
-            font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
+.section-header {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
 
-        .card {
-            background-color: #ffffff;
-            padding: 2rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
+.card {
+    background-color: #ffffff;
+    padding: 2rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
 
-        .input-field {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            border: 1px solid #d1d5db;
-            border-radius: 0.5rem;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
+.input-field {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
 
-        .input-field:focus {
-            outline: none;
-            border-color: #2a5a54;
-            box-shadow: 0 0 0 3px rgba(42, 90, 84, 0.2);
-        }
+.input-field:focus {
+    outline: none;
+    border-color: #2a5a54;
+    box-shadow: 0 0 0 3px rgba(42, 90, 84, 0.2);
+}
 
-        .collapsible-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease-in-out, padding 0.3s ease-in-out;
-        }
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out, padding 0.3s ease-in-out;
+}
 
-        .collapsible-content.expanded {
-            max-height: 500px;
-            padding-top: 1rem;
-        }
+.collapsible-content.expanded {
+    max-height: 500px;
+    padding-top: 1rem;
+}
 
-        .toast-message {
-            position: fixed;
-            bottom: 2rem;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #2a5a54;
-            color: white;
-            padding: 1rem 2rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-            z-index: 1000;
-            font-weight: 600;
-        }
-        
-        .toast-message.show {
-            opacity: 1;
-        }
-    
+.toast-message {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #2a5a54;
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    z-index: 1000;
+    font-weight: 600;
+}
 
-        .tooltip-container {
-            position: relative;
-            display: inline-block;
-        }
+.toast-message.show {
+    opacity: 1;
+}
 
-        .tooltip-text {
-            width: 250px;
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            border-radius: 6px;
-            padding: 8px 12px;
-            position: absolute;
-            z-index: 10;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -125px; /* Half the width to center it */
-            opacity: 0;
-            transform: translateY(10px);
-            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
-        }
+.tooltip-container {
+    position: relative;
+    display: inline-block;
+}
 
-        .tooltip-text::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: #333 transparent transparent transparent;
-        }
+.tooltip-text {
+    visibility: hidden;
+    width: 250px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 8px 12px;
+    position: absolute;
+    z-index: 10;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -125px; /* Half the width to center it */
+    opacity: 0;
+    transition: opacity 0.3s;
+}
 
-        .tooltip-container.show .tooltip-text {
-            transform: translateY(0);
-            opacity: 1;
-        }
+.tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
+}
+
+.tooltip-container.show .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+.discovery-card {
+    overflow-x: auto;
+}

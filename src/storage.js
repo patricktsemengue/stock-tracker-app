@@ -1,3 +1,5 @@
+import { appConfig } from './apiManager.js';
+
 export const getTransactions = () => {
     return JSON.parse(localStorage.getItem('transactions')) || [];
 };
@@ -21,4 +23,31 @@ export const getSavedSymbols = () => {
 
 export const saveSymbols = (symbols) => {
     localStorage.setItem('selectedSymbols', JSON.stringify(symbols));
+};
+
+export const getRecentlySearched = () => {
+    const cached = localStorage.getItem('recentlySearched');
+    if (!cached) {
+        return [];
+    }
+    const recentlySearched = JSON.parse(cached);
+    const now = new Date().getTime();
+    const expireTime = (appConfig.cacheExpire || 60) * 60 * 1000;
+    return recentlySearched.filter(item => now - item.timestamp < expireTime);
+};
+
+export const saveRecentlySearched = (symbol, name, price) => {
+    let recentlySearched = getRecentlySearched();
+    const now = new Date().getTime();
+    const newItem = { symbol, name, price, timestamp: now };
+    const existingIndex = recentlySearched.findIndex(item => item.symbol === symbol);
+    if (existingIndex > -1) {
+        recentlySearched.splice(existingIndex, 1);
+    }
+    recentlySearched.unshift(newItem);
+    const cacheSize = appConfig.cacheSize || 10;
+    if (recentlySearched.length > cacheSize) {
+        recentlySearched.pop();
+    }
+    localStorage.setItem('recentlySearched', JSON.stringify(recentlySearched));
 };

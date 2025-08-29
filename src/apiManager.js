@@ -1,77 +1,107 @@
 import { showToast, showMessageBox } from './ui.js';
 
-export let apiKeys = {
+export let appConfig = {
     geminiApiKey: '',
     alphaVantageApiKey: '',
-    fmpApiKey: ''
+    fmpApiKey: '',
+    finnhubApiKey: '',
+    cacheSize: 10, // Default cache size
+    cacheExpire: 60 // Default expiration in minutes
 };
 
 const geminiApiKeyInput = document.getElementById('gemini-api-key-input');
 const alphaVantageApiKeyInput = document.getElementById('alpha-vantage-api-key-input');
 const fmpApiKeyInput = document.getElementById('fmp-api-key-input');
+const finnhubApiKeyInput = document.getElementById('finnhub-api-key-input');
 
-export const initializeApiKeys = async () => {
+export const initializeAppConfig = async () => {
     try {
         const response = await fetch('/api/config');
         if (response.ok) {
-            const serverKeys = await response.json();
-            apiKeys.geminiApiKey = serverKeys.geminiApiKey || '';
-            apiKeys.alphaVantageApiKey = serverKeys.alphaVantageApiKey || '';
-            apiKeys.fmpApiKey = serverKeys.fmpApiKey || '';
+            const serverConfig = await response.json();
+            appConfig.geminiApiKey = serverConfig.geminiApiKey || '';
+            appConfig.alphaVantageApiKey = serverConfig.alphaVantageApiKey || '';
+            appConfig.fmpApiKey = serverConfig.fmpApiKey || '';
+            appConfig.finnhubApiKey = serverConfig.finnhubApiKey || '';
+            appConfig.cacheSize = serverConfig.cacheSize || 10;
+            appConfig.cacheExpire = serverConfig.cacheExpire || 60;
 
-            if (apiKeys.geminiApiKey) {
+            if (appConfig.geminiApiKey)
                 document.querySelector('[data-key="gemini"]').classList.add('hidden');
-            }
-            if (apiKeys.alphaVantageApiKey) {
+            if (appConfig.alphaVantageApiKey)
                 document.querySelector('[data-key="alpha-vantage"]').classList.add('hidden');
-            }
-            if (apiKeys.fmpApiKey) {
+            if (appConfig.fmpApiKey)
                 document.querySelector('[data-key="fmp"]').classList.add('hidden');
-            }
+            if (appConfig.finnhubApiKey)
+                document.querySelector('[data-key="finnhub"]').classList.add('hidden');
 
-            if (serverKeys.geminiApiKey || serverKeys.alphaVantageApiKey || serverKeys.fmpApiKey) {
-                showToast('(°_°)');
-            } else {
-                showToast('Failed to get keys from server, please enter them manually.');
-            }
         } else {
-            console.warn('Failed to fetch keys from server. Falling back to local storage.');
+            console.warn('Failed to fetch config from server. Falling back to local storage and defaults.');
         }
     } catch (error) {
-        console.error('Network error fetching server keys, falling back to local storage:', error);
+        console.error('Network error fetching server config, falling back to local storage and defaults:', error);
     } finally {
-        apiKeys.geminiApiKey = apiKeys.geminiApiKey || localStorage.getItem('geminiApiKey') || '';
-        apiKeys.alphaVantageApiKey = apiKeys.alphaVantageApiKey || localStorage.getItem('alphaVantageApiKey') || '';
-        apiKeys.fmpApiKey = apiKeys.fmpApiKey || localStorage.getItem('fmpApiKey') || '';
+        appConfig.geminiApiKey = appConfig.geminiApiKey || localStorage.getItem('geminiApiKey') || '';
+        appConfig.alphaVantageApiKey = appConfig.alphaVantageApiKey || localStorage.getItem('alphaVantageApiKey') || '';
+        appConfig.fmpApiKey = appConfig.fmpApiKey || localStorage.getItem('fmpApiKey') || '';
     }
 };
 
 export const saveApiKeys = () => {
     const geminiKey = geminiApiKeyInput.value.trim();
     const alphaVantageKey = alphaVantageApiKeyInput.value.trim();
-    const fmpKey = fmpApiKeyInput.value.trim(); 
+    const fmpKey = fmpApiKeyInput.value.trim();
+    const finnhubKey = finnhubApiKeyInput.value.trim();
 
-    if (!geminiApiKeyInput.closest('div').classList.contains('hidden')) {
+    if (!geminiApiKeyInput.closest('div').classList.contains('hidden'))
         localStorage.setItem('geminiApiKey', geminiKey);
-    }
-    if (!alphaVantageApiKeyInput.closest('div').classList.contains('hidden')) {
+    if (!alphaVantageApiKeyInput.closest('div').classList.contains('hidden'))
         localStorage.setItem('alphaVantageApiKey', alphaVantageKey);
-    }
-    if (!fmpApiKeyInput.closest('div').classList.contains('hidden')) {
-        localStorage.setItem('fmpApiKey', fmpKey); 
-    }
+    if (!fmpApiKeyInput.closest('div').classList.contains('hidden'))
+        localStorage.setItem('fmpApiKey', fmpKey);
+    if (!finnhubApiKeyInput.closest('div').classList.contains('hidden'))
+        localStorage.setItem('finnhubApiKey', finnhubKey);
 
-    apiKeys.geminiApiKey = geminiKey;
-    apiKeys.alphaVantageApiKey = alphaVantageKey;
-    apiKeys.fmpApiKey = fmpKey; 
+    appConfig.geminiApiKey = geminiKey;
+    appConfig.alphaVantageApiKey = alphaVantageKey;
+    appConfig.fmpApiKey = fmpKey;
+    appConfig.finnhubApiKey = finnhubKey;
 
     showToast('API Keys saved successfully!');
 };
 
-export const getApiKeys = () => apiKeys;
+export const getApiKeys = () => ({
+    geminiApiKey: appConfig.geminiApiKey,
+    alphaVantageApiKey: appConfig.alphaVantageApiKey,
+    fmpApiKey: appConfig.fmpApiKey,
+    finnhubApiKey: appConfig.finnhubApiKey
+});
+
+
+export const fetchFinnhubQuote = async (symbol) => {
+    if (!appConfig.finnhubApiKey) {
+        showMessageBox('Please provide API Key(s).');
+        return null;
+    }
+    const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${appConfig.finnhubApiKey}`);
+    if (!response.ok) {
+        console.error('Failed to fetch quote from Finnhub');
+        return null;
+    }
+    const data = await response.json();
+    return {
+        current: data.c,
+        change: data.d,
+        percent_change: data.dp,
+        high: data.h,
+        low: data.l,
+        open: data.o,
+        previous_close: data.pc
+    };
+};
 
 export const analyzeStrategyWithGemini = async (symbol) => {
-    if (!apiKeys.geminiApiKey) {
+    if (!appConfig.geminiApiKey) {
         showMessageBox('Please provide your Gemini API Key in the Data Management section to use this feature.');
         return;
     }
@@ -92,7 +122,7 @@ export const analyzeStrategyWithGemini = async (symbol) => {
         let chatHistory = [];
         chatHistory.push({ role: "user", parts: [{ text: prompt }] });
         const payload = { contents: chatHistory };
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKeys.geminiApiKey}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${appConfig.geminiApiKey}`;
         
         const response = await fetch(apiUrl, {
             method: 'POST',

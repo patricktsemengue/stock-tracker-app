@@ -368,6 +368,11 @@
                             <label for="fmp-api-key-input" class="block text-sm font-medium text-gray-600 mb-1">FMP_API_KEY</label>
                             <input type="text" id="fmp-api-key-input" class="input-field" placeholder="Enter your Financial Modeling Prep API Key">
                         </div>
+
+                        <div data-key="finnhub">
+                            <label for="finnhub-api-key-input" class="block text-sm font-medium text-gray-600 mb-1">FINNHUB_API_KEY</label>
+                            <input type="text" id="finnhub-api-key-input" class="input-field" placeholder="Enter your Finnhub API Key">
+                        </div>
                         <button id="save-api-key-btn" class="w-full bg-logo-primary text-white px-6 py-3 rounded-full shadow-lg hover:bg-opacity-80 transition-colors text-base font-bold">
                             Save API Key
                         </button>
@@ -378,6 +383,17 @@
                         Clear All Data
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <div id="discovery-card-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
+            <div class="bg-white p-6 rounded-lg w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto discovery-card relative">
+                <button id="close-discovery-card" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 z-10">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <div id="discovery-card-content" class="space-y-6"></div>
             </div>
         </div>
 

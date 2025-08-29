@@ -3,6 +3,9 @@ exports.handler = async (event, context) => {
     const geminiApiKey = process.env.GEMINI_API_KEY;
     const alphaVantageApiKey = process.env.ALPHA_VANTAGE_API_KEY;
     const fmpApiKey = process.env.FMP_API_KEY;
+    const cacheSize = process.env.CACHE_RECENTLY_SEARCHED_SIZE;
+    const cacheExpire = process.env.CACHE_RECENTLY_SEARCHED_EXPIRE;
+
 
     // Return the keys as a JSON object
     return {
@@ -10,7 +13,9 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({
             geminiApiKey,
             alphaVantageApiKey,
-            fmpApiKey
+            fmpApiKey,
+            cacheSize,
+            cacheExpire
         }),
         headers: {
             'Content-Type': 'application/json',
@@ -19,4 +24,3 @@ exports.handler = async (event, context) => {
     };
 
 };
-
