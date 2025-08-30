@@ -1,4 +1,4 @@
-import { calculateStockPNL, calculateOptionPNL } from './metrics.js';
+import { calculateStockPNL, calculateOptionPNL, calculateTransactionMetrics } from './metrics.js';
 import { getTransactionsForSymbol } from './transactionManager.js';
 
 const chartInstances = {};
@@ -9,6 +9,14 @@ const strategyPriceInput = document.getElementById('strategy-price');
 const strategyMaxProfitSpan = document.getElementById('strategy-max-profit');
 const strategyMaxLossSpan = document.getElementById('strategy-max-loss');
 const strategyBreakevenRangeSpan = document.getElementById('strategy-breakeven-range');
+
+export const simulateAndDrawTransactionPnlChart = (transaction, canvasId) => {
+    const relevantPrice = transaction.assetType === 'Stock' ? transaction.transactionPrice : (transaction.underlyingAssetPrice || transaction.strikePrice);
+    const initialMinPrice = relevantPrice * 0.5;
+    const initialMaxPrice = relevantPrice * 1.5;
+    
+    simulateAndDrawChart(transaction, canvasId, initialMinPrice, initialMaxPrice, relevantPrice);
+};
 
 export const simulateAndDrawPnlChart = (transaction) => {
     if (!transaction) {
@@ -49,8 +57,9 @@ export const runStrategySimulation = () => {
     
     const currency = transactionsForSymbol[0].currency;
     const {maxProfit, maxLoss, breakevenPrices} = calculateStrategyMetrics(transactionsForSymbol, relevantPrice);
+    const { investedAmount, premiumIncome, riskExposure } = calculateSymbolMetrics(transactionsForSymbol);
     
-    updateStrategyMetrics(maxProfit, maxLoss, breakevenPrices, currency);
+    updateStrategyMetrics(maxProfit, maxLoss, breakevenPrices, currency, investedAmount, premiumIncome, riskExposure);
 };
 
 export const updateStrategyPriceForSymbol = (symbol) => {
@@ -108,12 +117,12 @@ const simulateAndDrawChart = (transactionOrArray, canvasId, minPrice, maxPrice, 
     }
     
     const title = (Array.isArray(transactionOrArray)) ? `Strategy P&L for ${transactionOrArray[0].symbol}` : `${transactionOrArray.symbol} P&L`;
-    const currency = (Array.isArray(transactionOrArray)) ? transactionOrArray[0].currency : transactionOrArray.currency;
     const breakevenPrices = Array.isArray(transactionOrArray) ? calculateStrategyMetrics(transactionOrArray, relevantPrice).breakevenPrices : [];
     
     drawChart(pnlData, labels, canvasId, title, breakevenPrices, maxProfit, maxLoss, relevantPrice, transactionOrArray);
 };
 
+/*
 export const zoomChart = (chartId, zoomFactor) => {
     const chartData = chartInstances[chartId];
     if (!chartData) return;
@@ -135,14 +144,19 @@ export const zoomChart = (chartId, zoomFactor) => {
     } else {
         simulateAndDrawChart(chartData.transactionData, chartId, newMinPrice, newMaxPrice, relevantPrice);
     }
-};
+};*/
 
 const drawChart = (data, labels, canvasId, title, breakevenPrices, maxProfitValue, maxLossValue, relevantPrice, transactionData) => {
     const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+        return;
+    }
     const chartInstance = chartInstances[canvasId];
     if (chartInstance) {
         chartInstance.destroy();
     }
+
+    const isStrategyChart = Array.isArray(transactionData);
 
     const ctx = canvas.getContext('2d');
     const breakevenAnnotations = {};
@@ -152,71 +166,22 @@ const drawChart = (data, labels, canvasId, title, breakevenPrices, maxProfitValu
                 type: 'line',
                 xMin: parseFloat(price),
                 xMax: parseFloat(price),
-                borderColor: 'rgb(255, 99, 132)',
+                borderColor: 'rgb(54, 162, 235)',
                 borderWidth: 2,
-                borderDash: [6, 6],
+                borderDash: [10, 5],
                 label: {
-                    content: `Breakeven: ${price}`,
+                    content: 'Breakeven',
                     enabled: true,
                     position: 'start',
-                    backgroundColor: 'rgba(255, 99, 132, 0.7)'
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)'
                 }
             };
         });
     }
 
-    const maxProfitIndex = data.indexOf(maxProfitValue);
-    const maxLossIndex = data.indexOf(maxLossValue);
-    
     const annotations = {
         annotations: {
             ...breakevenAnnotations,
-            xMedianLine: {
-                type: 'line',
-                xMin: relevantPrice,
-                xMax: relevantPrice,
-                borderColor: 'rgba(128, 128, 128, 0.5)',
-                borderWidth: 2,
-                borderDash: [6, 6],
-                label: {
-                    content: `Relevant Price: ${relevantPrice}`,
-                    enabled: true,
-                    position: 'end',
-                    backgroundColor: 'rgba(128, 128, 128, 0.7)'
-                }
-            },
-            maxLossLabel: {
-                 type: 'label',
-                 xValue: labels[maxLossIndex] || labels[0],
-                 yValue: maxLossValue,
-                 content: `Max Loss: ${maxLossValue === -Infinity ? '−∞' : maxLossValue.toFixed(2)}`,
-                 backgroundColor: 'rgba(248, 215, 218, 0.8)',
-                 color: 'rgb(220, 53, 69)',
-                 font: {
-                    size: 14,
-                    weight: 'bold'
-                 },
-                 position: 'top',
-                 callout: {
-                    display: true
-                 }
-            },
-            maxProfitLabel: {
-                type: 'label',
-                xValue: labels[maxProfitIndex] || labels[labels.length - 1],
-                yValue: maxProfitValue,
-                content: `Max Profit: ${maxProfitValue === Infinity ? '∞' : maxProfitValue.toFixed(2)}`,
-                backgroundColor: 'rgba(212, 237, 218, 0.8)',
-                color: 'rgb(25, 135, 84)',
-                font: {
-                    size: 14,
-                    weight: 'bold'
-                },
-                position: 'top',
-                callout: {
-                    display: true
-                 }
-            }
         }
     };
     
@@ -228,19 +193,18 @@ const drawChart = (data, labels, canvasId, title, breakevenPrices, maxProfitValu
                 {
                     label: 'Profit/Loss',
                     data: data,
-                    borderColor: 'rgb(75, 192, 192)',
+                    borderColor: '#2a5a54',
                     backgroundColor: (context) => {
                         const chart = context.chart;
                         const { ctx, chartArea, scales } = chart;
-                        // Safety check to prevent errors on a non-rendered chart
                         if (!chartArea || chartArea.bottom === chartArea.top) return; 
                         const zeroY = scales.y.getPixelForValue(0);
                         const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                        const offset = (zeroY - chartArea.top) / (chartArea.bottom - chartArea.top);
-                        gradient.addColorStop(0, '#d4edda');
-                        gradient.addColorStop(offset, '#d4edda');
-                        gradient.addColorStop(offset, '#f8d7da');
-                        gradient.addColorStop(1, '#f8d7da');
+                        const offset = Math.max(0, Math.min(1, (zeroY - chartArea.top) / (chartArea.bottom - chartArea.top)));
+                        gradient.addColorStop(0, 'rgba(75, 192, 192, 0.2)');
+                        gradient.addColorStop(offset, 'rgba(75, 192, 192, 0.2)');
+                        gradient.addColorStop(offset, 'rgba(255, 99, 132, 0.2)');
+                        gradient.addColorStop(1, 'rgba(255, 99, 132, 0.2)');
                         return gradient;
                     },
                     fill: 'origin',
@@ -255,22 +219,22 @@ const drawChart = (data, labels, canvasId, title, breakevenPrices, maxProfitValu
             plugins: {
                 legend: { display: false },
                 title: {
-                    display: true,
+                    display: false,
                     text: title,
                     font: { size: 16 }
                 },
                 annotation: annotations,
                 zoom: {
                     pan: {
-                        enabled: true,
+                        enabled: false,
                         mode: 'xy'
                     },
                     zoom: {
                         wheel: {
-                            enabled: true
+                            enabled: false
                         },
                         pinch: {
-                            enabled: true
+                            enabled: false
                         },
                         mode: 'xy'
                     }
@@ -343,16 +307,43 @@ const calculateStrategyMetrics = (transactionsForSymbol, relevantPrice) => {
     return {maxProfit, maxLoss, breakevenPrices};
 };
 
-const updateStrategyMetrics = (maxProfit, maxLoss, breakevenPrices, currency) => {
-    const profitEl = document.getElementById('strategy-max-profit');
-    const lossEl = document.getElementById('strategy-max-loss');
-    const breakevenEl = document.getElementById('strategy-breakeven-range');
+const calculateSymbolMetrics = (transactionsForSymbol) => {
+    let totalInvestedAmount = 0;
+    let totalPremiumIncome = 0;
+    let totalRiskExposure = 0;
 
-    profitEl.textContent = maxProfit === Infinity ? '∞' : `${maxProfit.toFixed(2)} ${currency}`;
-    lossEl.textContent = maxLoss === -Infinity ? '-∞' : `${maxLoss.toFixed(2)} ${currency}`;
-    breakevenEl.textContent = breakevenPrices.length > 0 ? breakevenPrices.join(' & ') : 'None';
+    transactionsForSymbol.forEach(t => {
+        const metrics = calculateTransactionMetrics(t);
+        totalInvestedAmount += metrics.investedAmount;
+        totalPremiumIncome += metrics.premiumIncome;
+        if (metrics.riskExposure === -Infinity) {
+            totalRiskExposure = -Infinity;
+        } else if (totalRiskExposure !== -Infinity) {
+            totalRiskExposure += metrics.riskExposure;
+        }
+    });
+    return {
+        investedAmount: totalInvestedAmount,
+        premiumIncome: totalPremiumIncome,
+        riskExposure: totalRiskExposure,
+    };
+};
 
-    profitEl.className = `font-bold ${maxProfit > 0 || maxProfit === Infinity ? 'text-logo-green' : 'text-neutral-text'}`;
-    lossEl.className = `font-bold ${maxLoss < 0 || maxLoss === -Infinity ? 'text-logo-red' : 'text-neutral-text'}`;
-    breakevenEl.className = 'font-bold text-neutral-text';
+const updateStrategyMetrics = (maxProfit, maxLoss, breakevenPrices, currency, investedAmount, premiumIncome, potentialLoss) => {
+     const investedCashEl = document.getElementById('strategy-invested-cash');
+     const premiumIncomeEl = document.getElementById('strategy-premium-income');
+     const potentialLossEl = document.getElementById('strategy-potential-loss');
+     const breakevenMetricsEl = document.getElementById('strategy-breakeven');
+ 
+    investedCashEl.textContent = `${(investedAmount ?? 0).toFixed(2)} ${currency}`;
+    investedCashEl.className = `font-bold ${investedAmount > 0 ? 'text-logo-red' : 'text-neutral-text'}`;
+
+    premiumIncomeEl.textContent = `${(premiumIncome ?? 0).toFixed(2)} ${currency}`;
+    premiumIncomeEl.className = `font-bold ${premiumIncome > 0 ? 'text-logo-green' : 'text-neutral-text'}`;
+ 
+    potentialLossEl.textContent = potentialLoss === -Infinity ? '∞' : `${(potentialLoss ?? 0).toFixed(2)} ${currency}`;
+    potentialLossEl.className = `font-bold ${potentialLoss === -Infinity || potentialLoss > 0 ? 'text-logo-red' : 'text-neutral-text'}`;
+    breakevenMetricsEl.textContent = breakevenPrices.join(' & ') || 'None';
+    breakevenMetricsEl.className = 'font-bold text-neutral-text';
+ 
 };

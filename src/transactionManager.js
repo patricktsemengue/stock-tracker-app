@@ -36,13 +36,26 @@ export const setEditingTransactionId = (id) => {
     editingTransactionId = id;
 };
 
+// Function to generate a random hex color
+const randomColor = () => {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+};
+
 export const renderTransactionList = async () => {
     transactionListDiv.innerHTML = '';
     const transactionCounts = {};
+    const symbolColors = {};
 
-    // This loop populates the transactionCounts object
     transactions.forEach(t => {
         transactionCounts[t.symbol] = (transactionCounts[t.symbol] || 0) + 1;
+        if (!symbolColors[t.symbol]) {
+            symbolColors[t.symbol] = randomColor();
+        }
     });
 
     const forexRates = await getForexRates();
@@ -60,29 +73,23 @@ export const renderTransactionList = async () => {
     let totalOptionsBoughtPotentialLoss = 0;
     let totalOptionsSoldPremiumIncome = 0;
     let totalOptionsSoldPotentialLoss = 0;
-    
-    // Calculate aggregated metrics for each asset type
+
     const allSymbols = [...new Set(transactions.map(t => t.symbol))];
 
     for (const symbol of allSymbols) {
         const symbolTransactions = transactions.filter(t => t.symbol === symbol);
-        let localInvestedCash = 0;
-        let localPremiumIncome = 0;
-        let localRealizedIncome = 0;
         let localRiskExposure = 0;
         let currency = 'EUR';
-        
+
         if (symbolTransactions.length > 0) {
             currency = symbolTransactions[0].currency;
         }
-        
-        let localTotalPnl = 0;
+
         let localMaxLossForSymbol = 0;
-        
-        // Find a relevant price point to center the simulation around
+
         const referenceTransaction = symbolTransactions.find(t => t.assetType === 'Stock') || symbolTransactions[0];
         const relevantPrice = referenceTransaction.assetType === 'Stock' ? referenceTransaction.transactionPrice : referenceTransaction.strikePrice;
-        const priceRange = 50; 
+        const priceRange = 50;
         const numDataPoints = 201;
         const minPrice = Math.max(0, relevantPrice - (relevantPrice * priceRange / 100));
         const maxPrice = relevantPrice + (relevantPrice * priceRange / 100);
@@ -103,13 +110,13 @@ export const renderTransactionList = async () => {
             }
         }
         localRiskExposure = localMaxLossForSymbol;
-        
+
         symbolTransactions.forEach(t => {
             const metrics = calculateTransactionMetrics(t);
             let convertedInvested = metrics.investedAmount;
             let convertedPremium = metrics.premiumIncome;
             let convertedRealized = metrics.realizedIncome;
-            
+
             if (currency === 'USD' && forexRates && forexRates.EURUSD) {
                 convertedInvested /= forexRates.EURUSD;
                 convertedPremium /= forexRates.EURUSD;
@@ -221,26 +228,20 @@ export const renderTransactionList = async () => {
         document.getElementById('portfolio-summary-card').classList.add('hidden');
     }
 
+    const symbolsWithMultiple = Object.keys(transactionCounts).filter(s => transactionCounts[s] >= 2);
+    
+    // Populate strategy symbol dropdown
+    const strategySymbolSelect = document.getElementById('strategy-symbol');
+    const optionsHtml = symbolsWithMultiple.map(symbol => {
+        const transaction = transactions.find(t => t.symbol === symbol);
+        const name = transaction.name && transaction.name.trim() !== '' ? transaction.name : 'Unknown Name';
+        return `<option value="${symbol}">${symbol} - ${name}</option>`;
+    }).join('');
+    strategySymbolSelect.innerHTML = optionsHtml;
+
     transactions.forEach(t => {
         const metrics = calculateTransactionMetrics(t);
-        let investedInEUR = 0;
-        let premiumInEUR = 0;
-        let riskInEUR = 0;
         let portfolioShare = 0;
-
-        if (t.currency === 'USD' && forexRates && forexRates.EURUSD) {
-            investedInEUR = metrics.investedAmount / forexRates.EURUSD;
-            premiumInEUR = metrics.premiumIncome / forexRates.EURUSD;
-            riskInEUR = metrics.riskExposure === -Infinity ? -Infinity : metrics.riskExposure / forexRates.EURUSD;
-        } else if (t.currency === 'CHF' && forexRates && forexRates.EURCHF) {
-            investedInEUR = metrics.investedAmount / forexRates.EURCHF;
-            premiumInEUR = metrics.premiumIncome / forexRates.EURCHF;
-            riskInEUR = metrics.riskExposure === -Infinity ? -Infinity : metrics.riskExposure / forexRates.EURCHF;
-        } else {
-            investedInEUR = metrics.investedAmount;
-            premiumInEUR = metrics.premiumIncome;
-            riskInEUR = metrics.riskExposure;
-        }
 
         const currentTotalExposure = Math.abs(totalStocksPotentialLoss) + Math.abs(totalOptionsBoughtPotentialLoss) + (totalOptionsSoldPotentialLoss === -Infinity ? Infinity : Math.abs(totalOptionsSoldPotentialLoss));
 
@@ -280,12 +281,19 @@ export const renderTransactionList = async () => {
         const transactionItem = document.createElement('div');
         transactionItem.className = 'bg-neutral-card p-4 rounded-lg shadow-subtle space-y-4 cursor-pointer';
         
+        const strategyButton = (transactionCounts[t.symbol] >= 2) ? 
+        `<button data-id="${t.id}" data-symbol="${t.symbol}" class="strategy-btn bg-logo-green text-white px-4 py-2 rounded-full shadow hover:bg-opacity-80 transition-colors text-sm font-bold">
+            Strategy
+        </button>`
+        : '';
+        
         transactionItem.innerHTML = `
-            <div class="flex items-center justify-between" data-id="${t.id}" data-action="toggle-details">
+            <div class="flex items-center justify-between cursor-pointer" data-id="${t.id}" data-action="toggle-details">
                 <div class="flex flex-col">
-                    <div class="flex items-center">
+                    <div class="flex items-center space-x-2">
+                        <span class="rounded px-2 py-1 text-sm font-bold text-white" style="background-color: ${symbolColors[t.symbol]}">${t.symbol}</span>
                         <span class="text-xl font-bold text-neutral-text">${displayName}</span>
-                        <span class="ml-4 px-3 py-1 rounded-full text-xs font-semibold ${assetTypeClass}">${t.assetType} - ${t.action}</span>
+                        <span class="px-2 py-1 rounded text-xs font-semibold ${assetTypeClass}">${t.assetType} - ${t.action}</span>
                         ${currentTotalExposure > 0 ? `<span class="ml-2 text-sm font-semibold text-gray-700">| ${portfolioShare.toFixed(2)}%</span>` : ''}
                     </div>
                     <div class="text-sm text-gray-500 mt-1">
@@ -323,9 +331,7 @@ export const renderTransactionList = async () => {
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="realized-income">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
                                     </svg>
-                                    <span id="realized-income-tooltip" class="tooltip-text">
-                                        The total income received from a sold stock position, minus all trading fees.
-                                    </span>
+                                    <span id="realized-income-tooltip" class="tooltip-text">The total income received from a sold stock position, minus all trading fees.</span>
                                 </span>
                             </div>
                             <span class="font-bold text-base ${realizedIncomeClass}">${metrics.realizedIncome.toFixed(2)} ${t.currency}</span>
@@ -337,9 +343,7 @@ export const renderTransactionList = async () => {
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="potential-loss">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
                                     </svg>
-                                    <span id="potential-loss-tooltip" class="tooltip-text">
-                                        The maximum possible loss for a single position. For sold stocks, this is 0.
-                                    </span>
+                                    <span id="potential-loss-tooltip" class="tooltip-text">The maximum possible loss for a single position. For sold stocks, this is 0.</span>
                                 </span>
                             </div>
                             <span class="font-bold text-base ${riskClass}">${metrics.riskExposure.toFixed(2) + ' ' + t.currency}</span>
@@ -352,9 +356,7 @@ export const renderTransactionList = async () => {
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="invested-amount">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
                                     </svg>
-                                    <span id="invested-amount-tooltip" class="tooltip-text">
-                                        This is the total amount of cash spent to open a position, including all trading fees.
-                                    </span>
+                                    <span id="invested-amount-tooltip" class="tooltip-text">This is the total amount of cash spent to open a position, including all trading fees.</span>
                                 </span>
                             </div>
                             <span class="font-bold text-base ${investedClass}">${metrics.investedAmount.toFixed(2)} ${t.currency}</span>
@@ -366,9 +368,7 @@ export const renderTransactionList = async () => {
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="premium-income">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
                                     </svg>
-                                    <span id="premium-income-tooltip" class="tooltip-text">
-                                        The total cash received from selling an option contract, minus all trading fees.
-                                    </span>
+                                    <span id="premium-income-tooltip" class="tooltip-text">The total cash received from selling an option contract, minus all trading fees.</span>
                                 </span>
                             </div>
                             <span class="font-bold text-base ${premiumClass}">${metrics.premiumIncome.toFixed(2)} ${t.currency}</span>
@@ -380,9 +380,7 @@ export const renderTransactionList = async () => {
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="potential-loss">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
                                     </svg>
-                                    <span id="potential-loss-tooltip" class="tooltip-text">
-                                        The maximum possible loss for a single position. For some positions, this can be unlimited.
-                                    </span>
+                                    <span id="potential-loss-tooltip" class="tooltip-text">The maximum possible loss for a single position. For some positions, this can be unlimited.</span>
                                 </span>
                             </div>
                             <span class="font-bold text-base ${riskClass}">${metrics.riskExposure === -Infinity ? '∞' : metrics.riskExposure.toFixed(2) + ' ' + t.currency}</span>
@@ -395,9 +393,7 @@ export const renderTransactionList = async () => {
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="breakeven">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
                                     </svg>
-                                    <span id="breakeven-tooltip" class="tooltip-text">
-                                        The price point at which a position begins to become profitable, including all fees.
-                                    </span>
+                                    <span id="breakeven-tooltip" class="tooltip-text">The price point at which a position begins to become profitable, including all fees.</span>
                                 </span>
                             </div>
                             <span class="font-bold text-base text-neutral-text">${metrics.breakEven.toFixed(2)} ${t.currency}</span>
@@ -405,30 +401,15 @@ export const renderTransactionList = async () => {
                     </div>
                 </div>
                 <div class="mt-6 flex justify-end gap-2">
-                    <button data-id="${t.id}" class="simulate-btn bg-logo-primary text-white px-4 py-2 rounded-full shadow hover:bg-opacity-80 transition-colors text-sm font-bold">
-                        Simulate P&L
-                    </button>
-                    <button data-id="${t.id}" class="edit-btn bg-gray-200 text-gray-700 px-4 py-2 rounded-full shadow hover:bg-gray-300 transition-colors text-sm font-bold">
-                        Edit
-                    </button>
-                    <button data-id="${t.id}" class="delete-btn bg-logo-red text-white px-4 py-2 rounded-full shadow hover:bg-opacity-80 transition-colors text-sm font-bold">
-                        Delete
-                    </button>
+                    <button data-id="${t.id}" class="edit-btn bg-gray-200 text-gray-700 px-4 py-2 rounded-full shadow hover:bg-gray-300 transition-colors text-sm font-bold">Edit</button>
+                    ${strategyButton}
+                    <button data-id="${t.id}" class="delete-btn bg-logo-red text-white px-4 py-2 rounded-full shadow hover:bg-opacity-80 transition-colors text-sm font-bold">Delete</button>
                 </div>
+                <div class="mt-4"><canvas id="chart-${t.id}" class="w-full h-64"></canvas></div>
             </div>
         `;
         transactionListDiv.appendChild(transactionItem);
     });
-
-    const strategyBtnContainer = document.getElementById('strategy-btn-container');
-    const strategySymbolSelect = document.getElementById('strategy-symbol');
-    const symbolsWithMultiple = Object.keys(transactionCounts).filter(s => transactionCounts[s] >= 2);
-    if (symbolsWithMultiple.length > 0) {
-        strategyBtnContainer.classList.remove('hidden');
-        strategySymbolSelect.innerHTML = symbolsWithMultiple.map(s => `<option value="${s}">${s}</option>`).join('');
-    } else {
-        strategyBtnContainer.classList.add('hidden');
-    }
 };
 
 export const getTransactionsForSymbol = (symbol) => {

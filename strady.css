@@ -1,7 +1,62 @@
+:root {
+    --bg-color: #FFF9EA;
+    --card-bg-color: #ffffff;
+    --text-color: #1f2937;
+    --secondary-text-color: #666;
+    --input-border-color: #d1d5db;
+    --input-focus-border-color: #2a5a54;
+    --input-focus-shadow-color: rgba(42, 90, 84, 0.2);
+    --button-bg-color: #2a5a54;
+    --button-text-color: #ffffff;
+    --accent-green: #6d9f82;
+    --accent-red: #ef4444;
+    --accent-blue: #3b82f6;
+    --tooltip-bg: #333;
+    --tooltip-text: #fff;
+}
+
+
+ body.dark-theme {
+    --bg-color: #1c1c1c;
+    --card-bg-color: #2c2c2c;
+    --text-color: #e0e0e0;
+    --secondary-text-color: #a0a0a0;
+    --input-border-color: #4a4a4a;
+    --input-focus-border-color: #00a876; 
+    --input-focus-shadow-color: rgba(0, 168, 118, 0.3);
+    --button-bg-color: #00a876;
+    --button-text-color: #ffffff;
+    --accent-green: #00a876; 
+    --accent-red: #e53935;
+    --accent-blue: #58a6ff;
+    --tooltip-bg: #e0e0e0;
+    --tooltip-text: #1c1c1c;
+ }
+
+
+body.fintech-theme {
+
+    --bg-color: #f0f2f5;
+    --card-bg-color: #ffffff;
+    --text-color: #1c2b36;
+    --secondary-text-color: #657786;
+    --input-border-color: #dde1e5;
+    --input-focus-border-color: #007bffc0;
+    --input-focus-shadow-color: rgba(0, 123, 255, 0.2);
+    --button-bg-color: #007bff;
+    --button-text-color: #ffffff;
+    --accent-green: #198754;
+    --accent-red: #dc3545;
+    --accent-blue: #007bff;
+    --tooltip-bg: #343a40;
+    --tooltip-text: #ffffff;
+
+}
+
 body {
     font-family: 'Inter', sans-serif;
-    background-color: #FFF9EA;
-    color: #1f2937;
+    background-color: var(--bg-color);
+    color: var(--text-color);
 }
 
 .section-header {
@@ -12,7 +67,7 @@ body {
 }
 
 .card {
-    background-color: #ffffff;
+    background-color: var(--card-bg-color);
     padding: 2rem;
     border-radius: 0.75rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
@@ -21,15 +76,17 @@ body {
 .input-field {
     width: 100%;
     padding: 0.75rem 1rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--input-border-color);
     border-radius: 0.5rem;
     transition: border-color 0.2s, box-shadow 0.2s;
+    background-color: var(--card-bg-color);
+    color: var(--text-color);
 }
 
 .input-field:focus {
     outline: none;
-    border-color: #2a5a54;
-    box-shadow: 0 0 0 3px rgba(42, 90, 84, 0.2);
+    border-color: var(--input-focus-border-color);
+    box-shadow: 0 0 0 3px var(--input-focus-shadow-color);
 }
 
 .collapsible-content {
@@ -48,8 +105,8 @@ body {
     bottom: 2rem;
     left: 50%;
     transform: translateX(-50%);
-    background-color: #2a5a54;
-    color: white;
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
     padding: 1rem 2rem;
     border-radius: 0.5rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -71,8 +128,8 @@ body {
 .tooltip-text {
     visibility: hidden;
     width: 250px;
-    background-color: #333;
-    color: #fff;
+    background-color: var(--tooltip-bg);
+    color: var(--tooltip-text);
     text-align: center;
     border-radius: 6px;
     padding: 8px 12px;
@@ -80,7 +137,7 @@ body {
     z-index: 10;
     bottom: 125%;
     left: 50%;
-    margin-left: -125px; /* Half the width to center it */
+    margin-left: -125px;
     opacity: 0;
     transition: opacity 0.3s;
 }
@@ -93,14 +150,10 @@ body {
     margin-left: -5px;
     border-width: 5px;
     border-style: solid;
-    border-color: #333 transparent transparent transparent;
+    border-color: var(--tooltip-bg) transparent transparent transparent;
 }
 
 .tooltip-container.show .tooltip-text {
     visibility: visible;
     opacity: 1;
-}
-
-.discovery-card {
-    overflow-x: auto;
 }

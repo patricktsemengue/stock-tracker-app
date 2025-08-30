@@ -1,9 +1,10 @@
 import { addOrUpdateTransaction, getTransactionById, setEditingTransactionId, renderTransactionList, exportTransactions, importTransactions, clearAllData, deleteTransaction } from './transactionManager.js';
-import { simulateAndDrawPnlChart, runStrategySimulation, updateStrategyPriceForSymbol, zoomChart } from './simulator.js';
+import { runStrategySimulation, updateStrategyPriceForSymbol, simulateAndDrawTransactionPnlChart } from './simulator.js';
 import { searchSymbol, lookupSymbol, addSelectedSymbol, removeSelectedSymbol, renderSelectedSymbols } from './searchAndSelect.js';
 import { saveApiKeys, initializeAppConfig, analyzeStrategyWithGemini, getApiKeys , fetchFinnhubQuote } from './apiManager.js';
 import { getForexRatesWithDate, saveForexRates, saveRecentlySearched, getRecentlySearched } from './storage.js';
 import { calculateStockPNL, calculateOptionPNL } from './metrics.js';
+
 
 // --- Helper Functions ---
 export const showMessageBox = (message) => {
@@ -128,31 +129,6 @@ export const getForexRates = async () => {
 const discoveryCardModal = document.getElementById('discovery-card-modal');
 const discoveryCardContent = document.getElementById('discovery-card-content');
 let activeQuoteData = null; 
-
-const renderDiscoveryCardContent = (symbol, name, quote) => {
-    const changeColor = quote.change >= 0 ? 'text-logo-green' : 'text-logo-red';
-    return `
-        <div class="border-b pb-4">
-            <div class="flex justify-between items-center">
-                <div><h2 class="text-3xl font-bold text-gray-800">${symbol}</h2><p class="text-gray-500">${name}</p></div>
-                <div class="text-right"><p class="text-3xl font-bold text-logo-primary">$${quote.current.toFixed(2)}</p><p class="text-sm font-semibold ${changeColor}">${quote.change.toFixed(2)} (${quote.percent_change.toFixed(2)}%)</p></div>
-            </div>
-            <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm text-center">
-                <div><p class="text-gray-400">Open</p><p class="font-semibold text-gray-700">$${quote.open.toFixed(2)}</p></div>
-                <div><p class="text-gray-400">High</p><p class="font-semibold text-gray-700">$${quote.high.toFixed(2)}</p></div>
-                <div><p class="text-gray-400">Low</p><p class="font-semibold text-gray-700">$${quote.low.toFixed(2)}</p></div>
-                <div><p class="text-gray-400">Prev. Close</p><p class="font-semibold text-gray-700">$${quote.previous_close.toFixed(2)}</p></div>
-            </div>
-        </div>
-        <div class="relative">
-            <div id="discovery-carousel-wrapper"></div>
-            <button id="discovery-prevBtn" class="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-8 bg-gray-200 p-2 rounded-full hover:bg-gray-300"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
-            <button id="discovery-nextBtn" class="absolute top-1/2 right-0 transform -translate-y-1/2 translate-x-8 bg-gray-200 p-2 rounded-full hover:bg-gray-300"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
-        </div>
-    `;
-};
-
-
 
 const createPnlChart = (canvasId, data, labels, breakEven) => {
     const ctx = document.getElementById(canvasId).getContext('2d');
@@ -295,6 +271,29 @@ const updateDiscoveryCardMetrics = (slide) => {
     slide.querySelector('.metric-breakeven').textContent = typeof breakEven === 'string' ? breakEven : breakEven.toFixed(2);
     
     updatePnlChart(slide);
+};
+
+const renderDiscoveryCardContent = (symbol, name, quote) => {
+    const changeColor = quote.change >= 0 ? 'text-logo-green' : 'text-logo-red';
+    return `
+        <div class="border-b pb-4">
+            <div class="flex justify-between items-center">
+                <div><h2 class="text-3xl font-bold text-gray-800">${symbol}</h2><p class="text-gray-500">${name}</p></div>
+                <div class="text-right"><p class="text-3xl font-bold text-logo-primary">$${quote.current.toFixed(2)}</p><p class="text-sm font-semibold ${changeColor}">${quote.change.toFixed(2)} (${quote.percent_change.toFixed(2)}%)</p></div>
+            </div>
+            <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm text-center">
+                <div><p class="text-gray-400">Open</p><p class="font-semibold text-gray-700">$${quote.open.toFixed(2)}</p></div>
+                <div><p class="text-gray-400">High</p><p class="font-semibold text-gray-700">$${quote.high.toFixed(2)}</p></div>
+                <div><p class="text-gray-400">Low</p><p class="font-semibold text-gray-700">$${quote.low.toFixed(2)}</p></div>
+                <div><p class="text-gray-400">Prev. Close</p><p class="font-semibold text-gray-700">$${quote.previous_close.toFixed(2)}</p></div>
+            </div>
+        </div>
+        <div class="relative">
+            <div id="discovery-carousel-wrapper"></div>
+            <button id="discovery-prevBtn" class="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-8 bg-gray-200 p-2 rounded-full hover:bg-gray-300"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+            <button id="discovery-nextBtn" class="absolute top-1/2 right-0 transform -translate-y-1/2 translate-x-8 bg-gray-200 p-2 rounded-full hover:bg-gray-300"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+        </div>
+    `;
 };
 
 export const showDiscoveryCard = async (symbol, name) => {
@@ -613,6 +612,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 details.classList.add('expanded');
                 if (chevron) chevron.style.transform = 'rotate(180deg)';
+                const transaction = getTransactionById(id);
+                if (transaction) {
+                    simulateAndDrawTransactionPnlChart(transaction, `chart-${id}`);
+                }
             }
         } else if (target.classList.contains('edit-btn')) {
             const transaction = getTransactionById(id);
@@ -646,11 +649,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (target.classList.contains('delete-btn')) {
             confirmDeleteBtn.dataset.id = id;
             deleteModal.classList.remove('hidden');
-        } else if (target.classList.contains('simulate-btn')) {
+        } else if (target.classList.contains('strategy-btn')) {
             const transaction = getTransactionById(id);
             if (transaction) {
-                simulateAndDrawPnlChart(transaction);
-                pnlSimulationModal.classList.remove('hidden');
+                strategySimulationModal.classList.remove('hidden');
+                strategySimulationModal.classList.add('flex');
+                const symbol = transaction.symbol;
+                strategySymbolSelect.value = symbol;
+                updateStrategyPriceForSymbol(symbol);
+                runStrategySimulation();
             } else {
                 showMessageBox('Transaction not found. Please try again.');
             }
@@ -687,16 +694,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     closePnlModalBtn.addEventListener('click', () => pnlSimulationModal.classList.add('hidden'));
     closeStrategyModalBtn.addEventListener('click', () => strategySimulationModal.classList.add('hidden'));
 
-    if (document.getElementById('strategy-btn')) {
-        document.getElementById('strategy-btn').addEventListener('click', () => {
-            strategySimulationModal.classList.remove('hidden');
-            const symbol = strategySymbolSelect.value;
-            if (symbol) {
-                updateStrategyPriceForSymbol(symbol);
-                runStrategySimulation();
-            }
-        });
-    }
 
     if (strategySymbolSelect) {
         strategySymbolSelect.addEventListener('change', () => {
@@ -783,5 +780,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         discoveryCardModal.classList.add('hidden');
         renderSelectedSymbols();
     });
+
+     // --- Theme Switching Logic ---
+    const themeGearButton = document.getElementById('theme-gear-button');
+    const themeModal = document.getElementById('theme-modal');
+    const closeThemeModal = document.getElementById('close-theme-modal');
+    const themeSelectBtns = document.querySelectorAll('.theme-select-btn');
+
+    const applyTheme = (theme) => {
+        document.body.className = '';
+        if (theme !== 'standard') {
+            document.body.classList.add(theme + '-theme');
+        }
+        localStorage.setItem('selectedTheme', theme);
+    };
+
+    themeGearButton.addEventListener('click', () => {
+        themeModal.classList.remove('hidden');
+        themeModal.classList.add('flex');
+    });
+    closeThemeModal.addEventListener('click', () => themeModal.classList.add('hidden'));
+    themeSelectBtns.forEach(btn => btn.addEventListener('click', (e) => {
+        applyTheme(e.target.dataset.theme);
+        themeModal.classList.add('hidden');
+    }));
+
+    const savedTheme = localStorage.getItem('selectedTheme') || 'standard';
+    applyTheme(savedTheme);
 
 });

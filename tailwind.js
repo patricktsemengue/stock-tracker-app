@@ -2,12 +2,16 @@ tailwind.config = {
         theme: {
           extend: {
             colors: {
-              'logo-bg': '#FFF9EA', // Updated to the new color
-              'logo-primary': '#2a5a54', // Dark teal from "Strady"
-              'logo-green': '#6d9f82', // Light green from icon
-              'logo-red': '#ef4444', // Red from arrow
-              'logo-blue': '#3b82f6', // Blue from bars
-              'logo-text-secondary': '#666', // Dark gray from subtitle
+              'logo-bg': '#f7f4ec',
+              'logo-primary': '#2a5a54',
+              'logo-green': '#6d9f82',
+              'logo-red': '#ef4444',
+              'logo-blue': '#3b82f6',
+              'logo-text-secondary': '#666',
+              'neutral-text': 'var(--text-color)',
+              'neutral-card': 'var(--card-bg-color)',
+              'neutral-bg': 'var(--bg-color)',
+              'neutral-secondary-text': 'var(--secondary-text-color)',
             },
             boxShadow: {
               'subtle': '0 1px 3px rgba(0,0,0,0.08)',

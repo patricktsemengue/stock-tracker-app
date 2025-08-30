@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
@@ -7,224 +8,283 @@
     <link rel="icon" href="./files/strady_icon.jpg" type="image/jpeg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.1/dist/chartjs-plugin-annotation.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <link rel="stylesheet" href="./strady.css">
 </head>
+
 <body class="p-4">
-    <header id="main-header" class="fixed top-0 left-0 w-full bg-logo-bg z-50 p-4 shadow-md flex items-center space-x-4">
+    <header id="main-header"
+        class="fixed top-0 left-0 w-full bg-logo-bg z-50 p-4 shadow-md flex items-center space-x-4">
         <img src="./files/logo-4ec1bb63-5616-432e-9955-2d15e8fc6fc3.jpeg" alt="Strady Logo" class="h-16">
     </header>
     <main class="container mx-auto max-w-7xl space-y-12 mt-32">
         <div class="fixed top-28 right-8 flex flex-col space-y-4 z-40">
-            <button id="add-transaction-fab" class="bg-logo-primary text-white p-4 rounded-full shadow-lg hover:bg-opacity-80 transition-colors flex items-center justify-center text-lg font-bold">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <button id="add-transaction-fab"
+                class="bg-logo-primary text-white p-4 rounded-full shadow-lg hover:bg-opacity-80 transition-colors flex items-center justify-center text-lg font-bold">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
             </button>
-            <button id="data-management-fab" class="bg-logo-green text-white p-4 rounded-full shadow-lg hover:bg-opacity-80 transition-colors flex items-center justify-center text-lg font-bold">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7v4a1 1 0 001 1h6a1 1 0 001-1V7m-5 8h.01M12 16h.01M12 12h.01M12 8h.01M3 12h18M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+            <button id="data-management-fab"
+                class="bg-logo-green text-white p-4 rounded-full shadow-lg hover:bg-opacity-80 transition-colors flex items-center justify-center text-lg font-bold">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M8 7v4a1 1 0 001 1h6a1 1 0 001-1V7m-5 8h.01M12 16h.01M12 12h.01M12 8h.01M3 12h18M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
                 </svg>
             </button>
         </div>
 
         <div class="lg:grid lg:grid-cols-3 lg:gap-8">
             <section id="add-transaction-section" class="lg:col-span-1 mb-8 lg:mb-0 card hidden">
-                </section>
+            </section>
 
             <div class="lg:col-span-3 space-y-8">
                 <section class="card">
                     <h2 class="text-xl section-header text-neutral-text mb-4">Symbol Search</h2>
                     <div class="flex flex-col gap-2">
-                        <input type="text" id="symbol-search-input" class="input-field" placeholder="Search for a symbol (e.g., AAPL)">
+                        <input type="text" id="symbol-search-input" class="input-field"
+                            placeholder="Search for a symbol (e.g., AAPL)">
                         <div id="search-results-container" class="space-y-2">
-                            </div>
+                        </div>
                     </div>
                 </section>
                 <section id="selected-symbols-section" class="card hidden">
                     <h2 class="text-xl section-header text-neutral-text mb-4">Recently Searched</h2>
                     <div id="selected-symbols-container" class="flex flex-wrap gap-2">
-                        </div>
+                    </div>
                 </section>
                 <section id="portfolio-summary-card" class="card hidden">
-            <h2 class="text-xl section-header text-neutral-text mb-4">Portfolio (in EUR)</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="bg-gray-100 p-4 rounded-lg text-center">
-                    <div class="flex items-center justify-center space-x-1">
-                        <span class="text-sm text-gray-500">Invested Cash</span>
-                        <span class="tooltip-container">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="total-invested-cash-tooltip">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
-                            </svg>
-                            <span id="total-invested-cash-tooltip" class="tooltip-text">
-                                The total amount of cash spent on all "Buy" stock and option positions.
-                            </span>
-                        </span>
-                    </div>
-                    <span id="total-invested-cash" class="block text-2xl font-bold text-neutral-text mt-1">0.00 €</span>
-                </div>
-                <div class="bg-gray-100 p-4 rounded-lg text-center">
-                    <div class="flex items-center justify-center space-x-1">
-                        <span class="text-sm text-gray-500">Premium Income</span>
-                        <span class="tooltip-container">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="total-premium-income-tooltip">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
-                            </svg>
-                            <span id="total-premium-income-tooltip" class="tooltip-text">
-                                The total cash received from all "Sell" option contracts, minus trading fees.
-                            </span>
-                        </span>
-                    </div>
-                    <span id="total-premium-income" class="block text-2xl font-bold text-neutral-text mt-1">0.00 €</span>
-                </div>
-                <div class="bg-gray-100 p-4 rounded-lg text-center">
-                    <div class="flex items-center justify-center space-x-1">
-                        <span class="text-sm text-gray-500">Risk Exposure</span>
-                        <span class="tooltip-container">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="total-risk-exposure-tooltip">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
-                            </svg>
-                            <span id="total-risk-exposure-tooltip" class="tooltip-text">
-                                The total maximum possible loss across all positions. For some positions, this can be unlimited. It's the sum of the potential losses of all open positions.
-                            </span>
-                        </span>
-                    </div>
-                    <span id="total-risk-exposure" class="block text-2xl font-bold text-neutral-text mt-1">0.00 €</span>
-                </div>
-                <div class="bg-gray-100 p-4 rounded-lg text-center">
-                    <div class="flex items-center justify-center space-x-1">
-                        <span class="text-sm text-gray-500">Risk Reward Ratio</span>
-                        <span class="tooltip-container">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="total-risk-reward-ratio-tooltip">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
-                            </svg>
-                            <span id="total-risk-reward-ratio-tooltip" class="tooltip-text">
-                                The ratio of total potential profit (Premium Income + Realized Income - Invested Cash) to total potential loss (Risk Exposure).
-                            </span>
-                        </span>
-                    </div>
-                    <span id="total-risk-reward-ratio" class="block text-2xl font-bold text-neutral-text mt-1">--</span>
-                </div>
-            </div>
-
-            <div id="sold-stock-income-card" class="mt-8 space-y-4 hidden">
-                <div class="bg-gray-100 p-4 rounded-lg text-center">
-                    <div class="flex items-center justify-center space-x-1">
-                        <span class="text-sm text-gray-500">Sold Stock Income</span>
-                        <span class="tooltip-container">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon" viewBox="0 0 20 20" fill="currentColor" data-tooltip-for="total-sold-stock-income-tooltip">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z" clip-rule="evenodd" />
-                            </svg>
-                            <span id="total-sold-stock-income-tooltip" class="tooltip-text">
-                                The total realized income from all "Sell" stock positions, including fees.
-                            </span>
-                        </span>
-                    </div>
-                    <span id="total-sold-stock-income" class="block text-2xl font-bold text-neutral-text mt-1">0.00 €</span>
-                </div>
-            </div>
-
-            <div class="mt-8 space-y-4">
-                <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
-                    <div class="flex justify-between items-center cursor-pointer" onclick="document.getElementById('stocks-metrics').classList.toggle('hidden')">
-                        <h3 class="text-lg font-bold text-neutral-text">Stocks</h3>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                        </svg>
-                    </div>
-                    <div id="stocks-metrics" class="hidden mt-4 grid grid-cols-1 sm:grid-cols-4 gap-4 text-center">
-                        <div>
-                            <span class="text-sm text-gray-500">Invested Cash</span>
-                            <span id="stocks-invested-cash" class="block font-bold text-neutral-text">0.00 €</span>
-                        </div>
-                        <div>
-                            <span class="text-sm text-gray-500">Realized Income</span>
-                            <span id="stocks-realized-income" class="block font-bold text-neutral-text">0.00 €</span>
-                        </div>
-                        <div>
-                            <span class="text-sm text-gray-500">Potential Loss</span>
-                            <span id="stocks-potential-loss" class="block font-bold text-neutral-text">0.00 €</span>
-                        </div>
-                        <div>
-                            <span class="text-sm text-gray-500">Portfolio Share</span>
-                            <span id="stocks-portfolio-share" class="block font-bold text-neutral-text">0.00%</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
-                    <div class="flex justify-between items-center cursor-pointer" onclick="document.getElementById('options-metrics').classList.toggle('hidden')">
-                        <h3 class="text-lg font-bold text-neutral-text">Options</h3>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                        </svg>
-                    </div>
-                    <div id="options-metrics" class="hidden mt-4 space-y-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                            <h4 class="col-span-full text-base font-bold text-gray-700">Options Bought</h4>
-                            <div>
+                    <h2 class="text-xl section-header text-neutral-text mb-4">Portfolio (in EUR)</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-gray-100 p-4 rounded-lg text-center">
+                            <div class="flex items-center justify-center space-x-1">
                                 <span class="text-sm text-gray-500">Invested Cash</span>
-                                <span id="options-bought-invested-cash" class="block font-bold text-neutral-text">0.00 €</span>
+                                <span class="tooltip-container">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon"
+                                        viewBox="0 0 20 20" fill="currentColor"
+                                        data-tooltip-for="total-invested-cash-tooltip">
+                                        <path fill-rule="evenodd"
+                                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    <span id="total-invested-cash-tooltip" class="tooltip-text">
+                                        The total amount of cash spent on all "Buy" stock and option positions.
+                                    </span>
+                                </span>
                             </div>
-                            <div>
-                                <span class="text-sm text-gray-500">Potential Loss</span>
-                                <span id="options-bought-potential-loss" class="block font-bold text-neutral-text">0.00 €</span>
+                            <span id="total-invested-cash" class="block text-2xl font-bold text-neutral-text mt-1">0.00
+                                €</span>
+                        </div>
+                        <div class="bg-gray-100 p-4 rounded-lg text-center">
+                            <div class="flex items-center justify-center space-x-1">
+                                <span class="text-sm text-gray-500">Premium Income</span>
+                                <span class="tooltip-container">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon"
+                                        viewBox="0 0 20 20" fill="currentColor"
+                                        data-tooltip-for="total-premium-income-tooltip">
+                                        <path fill-rule="evenodd"
+                                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    <span id="total-premium-income-tooltip" class="tooltip-text">
+                                        The total cash received from all "Sell" option contracts, minus trading fees.
+                                    </span>
+                                </span>
                             </div>
-                            <div>
-                                <span class="text-sm text-gray-500">Portfolio Share</span>
-                                <span id="options-bought-portfolio-share" class="block font-bold text-neutral-text">0.00%</span>
+                            <span id="total-premium-income" class="block text-2xl font-bold text-neutral-text mt-1">0.00
+                                €</span>
+                        </div>
+                        <div class="bg-gray-100 p-4 rounded-lg text-center">
+                            <div class="flex items-center justify-center space-x-1">
+                                <span class="text-sm text-gray-500">Risk Exposure</span>
+                                <span class="tooltip-container">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon"
+                                        viewBox="0 0 20 20" fill="currentColor"
+                                        data-tooltip-for="total-risk-exposure-tooltip">
+                                        <path fill-rule="evenodd"
+                                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    <span id="total-risk-exposure-tooltip" class="tooltip-text">
+                                        The total maximum possible loss across all positions. For some positions, this
+                                        can be unlimited. It's the sum of the potential losses of all open positions.
+                                    </span>
+                                </span>
+                            </div>
+                            <span id="total-risk-exposure" class="block text-2xl font-bold text-neutral-text mt-1">0.00
+                                €</span>
+                        </div>
+                        <div class="bg-gray-100 p-4 rounded-lg text-center">
+                            <div class="flex items-center justify-center space-x-1">
+                                <span class="text-sm text-gray-500">Risk Reward Ratio</span>
+                                <span class="tooltip-container">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon"
+                                        viewBox="0 0 20 20" fill="currentColor"
+                                        data-tooltip-for="total-risk-reward-ratio-tooltip">
+                                        <path fill-rule="evenodd"
+                                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    <span id="total-risk-reward-ratio-tooltip" class="tooltip-text">
+                                        The ratio of total potential profit (Premium Income + Realized Income - Invested
+                                        Cash) to total potential loss (Risk Exposure).
+                                    </span>
+                                </span>
+                            </div>
+                            <span id="total-risk-reward-ratio"
+                                class="block text-2xl font-bold text-neutral-text mt-1">--</span>
+                        </div>
+                    </div>
+
+                    <div id="sold-stock-income-card" class="mt-8 space-y-4 hidden">
+                        <div class="bg-gray-100 p-4 rounded-lg text-center">
+                            <div class="flex items-center justify-center space-x-1">
+                                <span class="text-sm text-gray-500">Sold Stock Income</span>
+                                <span class="tooltip-container">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors tooltip-icon"
+                                        viewBox="0 0 20 20" fill="currentColor"
+                                        data-tooltip-for="total-sold-stock-income-tooltip">
+                                        <path fill-rule="evenodd"
+                                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.868.498l-1.5 2.5A1 1 0 008.5 11H9v2a1 1 0 102 0v-2h.5a1 1 0 00.868-1.502l-1.5-2.5A1 1 0 0010 7z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    <span id="total-sold-stock-income-tooltip" class="tooltip-text">
+                                        The total realized income from all "Sell" stock positions, including fees.
+                                    </span>
+                                </span>
+                            </div>
+                            <span id="total-sold-stock-income"
+                                class="block text-2xl font-bold text-neutral-text mt-1">0.00 €</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 space-y-4">
+                        <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
+                            <div class="flex justify-between items-center cursor-pointer"
+                                onclick="document.getElementById('stocks-metrics').classList.toggle('hidden')">
+                                <h3 class="text-lg font-bold text-neutral-text">Stocks</h3>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500"
+                                    viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div id="stocks-metrics"
+                                class="hidden mt-4 grid grid-cols-1 sm:grid-cols-4 gap-4 text-center">
+                                <div>
+                                    <span class="text-sm text-gray-500">Invested Cash</span>
+                                    <span id="stocks-invested-cash" class="block font-bold text-neutral-text">0.00
+                                        €</span>
+                                </div>
+                                <div>
+                                    <span class="text-sm text-gray-500">Realized Income</span>
+                                    <span id="stocks-realized-income" class="block font-bold text-neutral-text">0.00
+                                        €</span>
+                                </div>
+                                <div>
+                                    <span class="text-sm text-gray-500">Potential Loss</span>
+                                    <span id="stocks-potential-loss" class="block font-bold text-neutral-text">0.00
+                                        €</span>
+                                </div>
+                                <div>
+                                    <span class="text-sm text-gray-500">Portfolio Share</span>
+                                    <span id="stocks-portfolio-share"
+                                        class="block font-bold text-neutral-text">0.00%</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                            <h4 class="col-span-full text-base font-bold text-gray-700">Options Sold</h4>
-                            <div>
-                                <span class="text-sm text-gray-500">Premium Income</span>
-                                <span id="options-sold-premium-income" class="block font-bold text-neutral-text">0.00 €</span>
+
+                        <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
+                            <div class="flex justify-between items-center cursor-pointer"
+                                onclick="document.getElementById('options-metrics').classList.toggle('hidden')">
+                                <h3 class="text-lg font-bold text-neutral-text">Options</h3>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500"
+                                    viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                        clip-rule="evenodd" />
+                                </svg>
                             </div>
-                            <div>
-                                <span class="text-sm text-gray-500">Potential Loss</span>
-                                <span id="options-sold-potential-loss" class="block font-bold text-neutral-text">0.00 €</span>
-                            </div>
-                            <div>
-                                <span class="text-sm text-gray-500">Portfolio Share</span>
-                                <span id="options-sold-portfolio-share" class="block font-bold text-neutral-text">0.00%</span>
+                            <div id="options-metrics" class="hidden mt-4 space-y-4">
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                                    <h4 class="col-span-full text-base font-bold text-gray-700">Options Bought</h4>
+                                    <div>
+                                        <span class="text-sm text-gray-500">Invested Cash</span>
+                                        <span id="options-bought-invested-cash"
+                                            class="block font-bold text-neutral-text">0.00 €</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-sm text-gray-500">Potential Loss</span>
+                                        <span id="options-bought-potential-loss"
+                                            class="block font-bold text-neutral-text">0.00 €</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-sm text-gray-500">Portfolio Share</span>
+                                        <span id="options-bought-portfolio-share"
+                                            class="block font-bold text-neutral-text">0.00%</span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                                    <h4 class="col-span-full text-base font-bold text-gray-700">Options Sold</h4>
+                                    <div>
+                                        <span class="text-sm text-gray-500">Premium Income</span>
+                                        <span id="options-sold-premium-income"
+                                            class="block font-bold text-neutral-text">0.00 €</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-sm text-gray-500">Potential Loss</span>
+                                        <span id="options-sold-potential-loss"
+                                            class="block font-bold text-neutral-text">0.00 €</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-sm text-gray-500">Portfolio Share</span>
+                                        <span id="options-sold-portfolio-share"
+                                            class="block font-bold text-neutral-text">0.00%</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </section>
+                </section>
                 <section class="card">
                     <h2 class="text-xl section-header text-neutral-text mb-6">My Transactions</h2>
                     <div id="transaction-list" class="space-y-4">
-                        </div>
-                    <div id="strategy-btn-container" class="mt-6 hidden">
-                        <button id="strategy-btn" class="w-full bg-logo-green text-white px-6 py-3 rounded-full shadow-lg hover:bg-opacity-80 transition-colors text-base font-bold">
-                            Simulate Strategy
-                        </button>
                     </div>
                 </section>
 
                 <section id="data-management-section" class="card hidden">
-                    </section>
+                </section>
             </div>
         </div>
-        
-        <div id="add-transaction-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
+
+        <div id="add-transaction-modal"
+            class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
             <div class="bg-white p-6 rounded-lg w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-2xl font-bold" id="transaction-modal-title">Add New Transaction</h2>
                     <button id="close-transaction-modal" class="text-gray-500 hover:text-gray-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
                 <form id="transaction-form" class="space-y-4">
                     <div class="flex flex-col sm:flex-row gap-4">
                         <div class="w-full">
-                            <label for="asset-type" class="block text-sm font-medium text-gray-600 mb-1">Asset Type</label>
+                            <label for="asset-type" class="block text-sm font-medium text-gray-600 mb-1">Asset
+                                Type</label>
                             <select id="asset-type" class="input-field">
                                 <option value="Stock">Stock</option>
                                 <option value="Call Option">Call Option</option>
@@ -244,10 +304,11 @@
                             <label for="symbol" class="block text-sm font-medium text-gray-600 mb-1">Symbol</label>
                             <input type="text" id="symbol" class="input-field" required>
                             <div id="transaction-symbol-search-results" class="mt-2 space-y-2">
-                                </div>
+                            </div>
                         </div>
                         <div class="w-full">
-                            <label for="name" class="block text-sm font-medium text-gray-600 mb-1">Name (Optional)</label>
+                            <label for="name" class="block text-sm font-medium text-gray-600 mb-1">Name
+                                (Optional)</label>
                             <input type="text" id="name" class="input-field" placeholder="e.g. My Favorite Stock">
                         </div>
                     </div>
@@ -261,11 +322,13 @@
                     <div id="stock-fields" class="space-y-4">
                         <div class="flex flex-col sm:flex-row gap-4">
                             <div class="w-full">
-                                <label for="stock-price" class="block text-sm font-medium text-gray-600 mb-1">Transaction Price</label>
+                                <label for="stock-price"
+                                    class="block text-sm font-medium text-gray-600 mb-1">Transaction Price</label>
                                 <input type="number" id="stock-price" step="0.01" class="input-field">
                             </div>
                             <div class="w-full">
-                                <label for="stock-fees" class="block text-sm font-medium text-gray-600 mb-1">Fees per Unit</label>
+                                <label for="stock-fees" class="block text-sm font-medium text-gray-600 mb-1">Fees per
+                                    Unit</label>
                                 <input type="number" id="stock-fees" step="0.01" value="0.00" class="input-field">
                             </div>
                         </div>
@@ -274,32 +337,39 @@
                     <div id="option-fields" class="hidden space-y-4">
                         <div class="flex flex-col sm:flex-row gap-4">
                             <div class="w-full">
-                                <label for="option-strike" class="block text-sm font-medium text-gray-600 mb-1">Strike Price</label>
+                                <label for="option-strike" class="block text-sm font-medium text-gray-600 mb-1">Strike
+                                    Price</label>
                                 <input type="number" id="option-strike" step="0.01" class="input-field">
                             </div>
                             <div class="w-full">
-                                <label for="option-premium" class="block text-sm font-medium text-gray-600 mb-1">Premium</label>
+                                <label for="option-premium"
+                                    class="block text-sm font-medium text-gray-600 mb-1">Premium</label>
                                 <input type="number" id="option-premium" step="0.01" class="input-field">
                             </div>
                         </div>
-                        <div class="flex flex-col sm:flex-row gap-4 hidden"> <div class="w-full">
-                                <label for="option-underlying" class="block text-sm font-medium text-gray-600 mb-1">Underlying Asset Price</label>
+                        <div class="flex flex-col sm:flex-row gap-4 hidden">
+                            <div class="w-full">
+                                <label for="option-underlying"
+                                    class="block text-sm font-medium text-gray-600 mb-1">Underlying Asset Price</label>
                                 <input type="number" id="option-underlying" step="0.01" class="input-field">
                             </div>
                         </div>
                         <div class="w-full">
-                            <label for="option-expiry" class="block text-sm font-medium text-gray-600 mb-1">Expiry Date</label>
+                            <label for="option-expiry" class="block text-sm font-medium text-gray-600 mb-1">Expiry
+                                Date</label>
                             <input type="date" id="option-expiry" class="input-field">
                         </div>
                         <div class="w-full">
-                            <label for="option-fees" class="block text-sm font-medium text-gray-600 mb-1">Fees per Contract</label>
+                            <label for="option-fees" class="block text-sm font-medium text-gray-600 mb-1">Fees per
+                                Contract</label>
                             <input type="number" id="option-fees" step="0.01" value="0.00" class="input-field">
                         </div>
                     </div>
 
                     <div class="flex flex-col sm:flex-row gap-4">
                         <div class="w-full">
-                            <label for="transaction-date" class="block text-sm font-medium text-gray-600 mb-1">Transaction Date</label>
+                            <label for="transaction-date"
+                                class="block text-sm font-medium text-gray-600 mb-1">Transaction Date</label>
                             <input type="date" id="transaction-date" class="input-field">
                         </div>
                         <div class="w-full">
@@ -313,10 +383,12 @@
                     </div>
 
                     <div class="flex justify-end gap-2 mt-6">
-                        <button type="button" id="cancel-btn" class="hidden bg-gray-200 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-300 transition-colors text-base font-bold">
+                        <button type="button" id="cancel-btn"
+                            class="hidden bg-gray-200 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-300 transition-colors text-base font-bold">
                             Cancel
                         </button>
-                        <button type="submit" id="submit-btn" class="bg-logo-primary text-white px-6 py-3 rounded-full shadow-lg hover:bg-opacity-80 transition-colors text-base font-bold">
+                        <button type="submit" id="submit-btn"
+                            class="bg-logo-primary text-white px-6 py-3 rounded-full shadow-lg hover:bg-opacity-80 transition-colors text-base font-bold">
                             Add Transaction
                         </button>
                     </div>
@@ -324,101 +396,129 @@
             </div>
         </div>
 
-        <div id="data-management-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
+        <div id="data-management-modal"
+            class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
             <div class="bg-white p-6 rounded-lg w-full max-w-xl shadow-2xl max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-2xl font-bold">Data Management</h2>
                     <button id="close-data-management-modal" class="text-gray-500 hover:text-gray-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-4">
                     <div class="w-full">
                         <input type="file" id="import-file" class="hidden" accept=".json">
-                        <button id="import-btn" class="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-300 transition-colors text-base font-bold">
+                        <button id="import-btn"
+                            class="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-300 transition-colors text-base font-bold">
                             Import Transactions
                         </button>
                     </div>
                     <div class="w-full">
-                        <button id="export-btn" class="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-300 transition-colors text-base font-bold">
+                        <button id="export-btn"
+                            class="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-300 transition-colors text-base font-bold">
                             Export Transactions
                         </button>
                     </div>
                 </div>
 
                 <div class="mt-6 border-t pt-4">
-                    <button id="toggle-api-key-form" class="w-full bg-gray-100 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-200 transition-colors text-base font-bold flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <button id="toggle-api-key-form"
+                        class="w-full bg-gray-100 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-200 transition-colors text-base font-bold flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                         </svg>
                         Manage API Key
                     </button>
                     <div id="api-key-form-container" class="hidden mt-4 space-y-4">
                         <div data-key="gemini">
-                            <label for="gemini-api-key-input" class="block text-sm font-medium text-gray-600 mb-1">GEMINI_API_KEY</label>
-                            <input type="text" id="gemini-api-key-input" class="input-field" placeholder="Enter your Gemini API Key">
+                            <label for="gemini-api-key-input"
+                                class="block text-sm font-medium text-gray-600 mb-1">GEMINI_API_KEY</label>
+                            <input type="text" id="gemini-api-key-input" class="input-field"
+                                placeholder="Enter your Gemini API Key">
                         </div>
                         <div data-key="alpha-vantage">
-                            <label for="alpha-vantage-api-key-input" class="block text-sm font-medium text-gray-600 mb-1">ALPHA_VANTAGE_API_KEY</label>
-                            <input type="text" id="alpha-vantage-api-key-input" class="input-field" placeholder="Enter your Alpha Vantage API Key">
+                            <label for="alpha-vantage-api-key-input"
+                                class="block text-sm font-medium text-gray-600 mb-1">ALPHA_VANTAGE_API_KEY</label>
+                            <input type="text" id="alpha-vantage-api-key-input" class="input-field"
+                                placeholder="Enter your Alpha Vantage API Key">
                         </div>
                         <div data-key="fmp">
-                            <label for="fmp-api-key-input" class="block text-sm font-medium text-gray-600 mb-1">FMP_API_KEY</label>
-                            <input type="text" id="fmp-api-key-input" class="input-field" placeholder="Enter your Financial Modeling Prep API Key">
+                            <label for="fmp-api-key-input"
+                                class="block text-sm font-medium text-gray-600 mb-1">FMP_API_KEY</label>
+                            <input type="text" id="fmp-api-key-input" class="input-field"
+                                placeholder="Enter your Financial Modeling Prep API Key">
                         </div>
 
                         <div data-key="finnhub">
-                            <label for="finnhub-api-key-input" class="block text-sm font-medium text-gray-600 mb-1">FINNHUB_API_KEY</label>
-                            <input type="text" id="finnhub-api-key-input" class="input-field" placeholder="Enter your Finnhub API Key">
+                            <label for="finnhub-api-key-input"
+                                class="block text-sm font-medium text-gray-600 mb-1">FINNHUB_API_KEY</label>
+                            <input type="text" id="finnhub-api-key-input" class="input-field"
+                                placeholder="Enter your Finnhub API Key">
                         </div>
-                        <button id="save-api-key-btn" class="w-full bg-logo-primary text-white px-6 py-3 rounded-full shadow-lg hover:bg-opacity-80 transition-colors text-base font-bold">
+                        <button id="save-api-key-btn"
+                            class="w-full bg-logo-primary text-white px-6 py-3 rounded-full shadow-lg hover:bg-opacity-80 transition-colors text-base font-bold">
                             Save API Key
                         </button>
                     </div>
                 </div>
                 <div class="mt-6 border-t pt-4">
-                    <button id="clear-all-data-btn" class="w-full bg-logo-red text-white px-6 py-3 rounded-full hover:bg-opacity-80 transition-colors text-base font-bold">
+                    <button id="clear-all-data-btn"
+                        class="w-full bg-logo-red text-white px-6 py-3 rounded-full hover:bg-opacity-80 transition-colors text-base font-bold">
                         Clear All Data
                     </button>
                 </div>
             </div>
         </div>
 
-        <div id="discovery-card-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
-            <div class="bg-white p-6 rounded-lg w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto discovery-card relative">
+        <div id="discovery-card-modal"
+            class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
+            <div
+                class="bg-white p-6 rounded-lg w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto discovery-card relative">
                 <button id="close-discovery-card" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 z-10">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
                 <div id="discovery-card-content" class="space-y-6"></div>
             </div>
         </div>
 
-        <div id="pnl-simulation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
+        <div id="pnl-simulation-modal"
+            class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
             <div class="bg-white p-6 rounded-lg w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-2xl font-bold">P&L Simulation</h2>
                     <button id="close-pnl-modal" class="text-gray-500 hover:text-gray-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
                 <div id="pnl-charts-container" class="space-y-8">
-                    </div>
-                 <div class="flex justify-end mt-4">
+                </div>
+                <div class="flex justify-end mt-4">
                     <div class="flex space-x-2 mr-4">
-                        <button id="zoom-in-pnl-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm font-bold flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <button id="zoom-in-pnl-btn"
+                            class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm font-bold flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="12" y1="5" x2="12" y2="19"></line>
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                             </svg>
                         </button>
-                        <button id="zoom-out-pnl-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm font-bold flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <button id="zoom-out-pnl-btn"
+                            class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm font-bold flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                             </svg>
                         </button>
@@ -426,66 +526,65 @@
                 </div>
             </div>
         </div>
-        
-        <div id="strategy-simulation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
-             <div class="bg-white p-6 rounded-lg w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-y-auto">
+
+        <div id="strategy-simulation-modal"
+            class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
+            <div class="bg-white p-6 rounded-lg w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-2xl font-bold">Strategy Simulation</h2>
                     <button id="close-strategy-modal" class="text-gray-500 hover:text-gray-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
                 <div class="flex flex-col md:flex-row md:space-x-4 mb-4">
                     <div class="w-full md:w-1/2 mb-4 md:mb-0">
-                        <label for="strategy-symbol" class="block text-sm font-medium text-gray-600 mb-1">Select Symbol</label>
+                        <label for="strategy-symbol" class="block text-sm font-medium text-gray-600 mb-1">Select
+                            Symbol</label>
                         <select id="strategy-symbol" class="input-field"></select>
                     </div>
                     <div class="w-full md:w-1/2">
-                        <label for="strategy-price" class="block text-sm font-medium text-gray-600 mb-1">Relevant Price</label>
-                        <input type="number" id="strategy-price" step="0.01" class="input-field">
+                        <label for="strategy-price" class="block text-sm font-medium text-gray-600 mb-1 hidden">Relevant
+                            Price</label>
+                        <input type="number" id="strategy-price" step="0.01"
+                            class="input-field cursor-not-allowed hidden" readonly>
                     </div>
                 </div>
-                <div class="bg-gray-50 rounded-lg p-4 mb-4">
-                    <canvas id="strategy-chart" class="w-full h-[400px]"></canvas>
-                </div>
-                <div class="flex justify-end mt-4 gap-2">
-                    <div class="flex space-x-2 mr-4">
-                        <button id="zoom-in-strategy-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm font-bold flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
-                        </button>
-                        <button id="zoom-out-strategy-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm font-bold flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
-                        </button>
+                <div class="bg-gray-100 p-4 rounded-lg shadow-sm">
+                    <h3 class="text-lg font-bold text-gray-700 mb-2">Symbol-level Metrics</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 text-center text-sm">
+                        <div class="space-y-1">
+                            <p class="text-gray-500">Invested Cash</p>
+                            <p id="strategy-invested-cash" class="font-bold text-neutral-text">--</p>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-gray-500">Premium Income</p>
+                            <p id="strategy-premium-income" class="font-bold text-neutral-text">--</p>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-gray-500">Potential Loss</p>
+                            <p id="strategy-potential-loss" class="font-bold text-neutral-text">--</p>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-gray-500">Breakeven(s)</p>
+                            <p id="strategy-breakeven" class="font-bold text-neutral-text">--</p>
+                        </div>
                     </div>
                 </div>
 
-                <div class="bg-white p-4 rounded-lg shadow-sm my-4">
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-gray-500 font-bold">Max Profit:</span>
-                        <span id="strategy-max-profit" class="font-bold">--</span>
-                    </div>
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-gray-500 font-bold">Max Loss:</span>
-                        <span id="strategy-max-loss" class="font-bold">--</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-500 font-bold">Breakeven Range:</span>
-                        <span id="strategy-breakeven-range" class="font-bold">--</span>
-                    </div>
+                <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                    <canvas id="strategy-chart" class="w-full h-[400px]"></canvas>
                 </div>
 
                 <div class="mt-8 pt-4 border-t border-gray-200">
                     <h3 class="text-xl font-bold text-gray-700 mb-4">Strategy Analysis ✨</h3>
                     <div class="flex justify-between items-center mb-4">
                         <p id="analyze-strategy-status" class="text-gray-500 italic"></p>
-                        <button id="analyze-strategy-btn" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-300 transition-colors text-base font-bold">
+                        <button id="analyze-strategy-btn"
+                            class="bg-gray-200 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-300 transition-colors text-base font-bold">
                             ✨ Analyze
                         </button>
                     </div>
@@ -497,25 +596,60 @@
         </div>
 
 
-        <div id="message-box" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
+        <div id="message-box"
+            class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
             <div class="bg-white p-6 rounded-lg shadow-2xl max-w-sm w-full">
                 <h3 class="text-xl font-bold mb-2">Message</h3>
                 <p id="message-text" class="text-gray-700 mb-4"></p>
                 <div class="flex justify-end">
-                    <button id="message-ok-btn" class="bg-logo-primary text-white px-4 py-2 rounded-full hover:bg-opacity-80">OK</button>
+                    <button id="message-ok-btn"
+                        class="bg-logo-primary text-white px-4 py-2 rounded-full hover:bg-opacity-80">OK</button>
                 </div>
             </div>
         </div>
         <div id="toast" class="toast-message hidden">
             Transaction saved successfully!
         </div>
-        <div id="delete-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
+        <div id="delete-modal"
+            class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">
             <div class="bg-white p-6 rounded-lg shadow-2xl max-w-sm w-full">
                 <h3 class="text-xl font-bold mb-2">Confirm Deletion</h3>
                 <p id="delete-message" class="text-gray-700 mb-4">Are you sure you want to delete this transaction?</p>
                 <div class="flex justify-end gap-2">
-                    <button id="cancel-delete-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300">Cancel</button>
-                    <button id="confirm-delete-btn" class="bg-logo-red text-white px-4 py-2 rounded-full hover:bg-red-600">Delete</button>
+                    <button id="cancel-delete-btn"
+                        class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300">Cancel</button>
+                    <button id="confirm-delete-btn"
+                        class="bg-logo-red text-white px-4 py-2 rounded-full hover:bg-red-600">Delete</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="theme-modal"
+            class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden justify-center items-center p-4">+ <div
+                class="bg-white p-6 rounded-lg w-full max-w-sm shadow-2xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold">Select Theme</h3>
+                    <button id="close-theme-modal" class="text-gray-500 hover:text-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <button data-theme="standard"
+                        class="theme-select-btn w-full text-center py-3 rounded-full font-bold bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors">
+                        Standard
+                    </button>
+                    <button data-theme="dark"
+                        class="theme-select-btn w-full text-center py-3 rounded-full font-bold bg-gray-800 text-white hover:bg-gray-700 transition-colors">
+                        Dark
+                    </button>
+                    <button data-theme="fintech"
+                        class="theme-select-btn w-full text-center py-3 rounded-full font-bold bg-blue-500 text-white hover:bg-blue-600 transition-colors">
+                        Fintech
+                    </button>
                 </div>
             </div>
         </div>
@@ -526,21 +660,31 @@
                 <a href="copyright.html" class="hover:underline">Copyright</a>
                 <a href="disclaimer.html" class="hover:underline">Disclaimer</a>
                 <a href="send-feedback.html" class="hover:underline">Send Feedback</a>
+                <button id="theme-gear-button" class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1.51-1V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                        </path>
+                    </svg>
+                </button>
             </div>
             <p>&copy; 2025 Strady by TheCornseed.com</p>
         </footer>
     </main>
     <script src="./tailwind.js"></script>
-    
+
     <script type="module" src="./src/ui.js"></script>
 
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-SZQ8V5GMEJ"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
 
-      gtag('config', 'G-SZQ8V5GMEJ');
+        gtag('config', 'G-SZQ8V5GMEJ');
     </script>
 </body>
+
 </html>
