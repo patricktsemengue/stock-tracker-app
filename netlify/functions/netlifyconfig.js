@@ -5,6 +5,7 @@ exports.handler = async (event, context) => {
     const fmpApiKey = process.env.FMP_API_KEY;
     const cacheSize = process.env.CACHE_RECENTLY_SEARCHED_SIZE;
     const cacheExpire = process.env.CACHE_RECENTLY_SEARCHED_EXPIRE;
+    const finnhubApiKey =  process.env.FINNHUB_API_KEY;
 
 
     // Return the keys as a JSON object
@@ -15,6 +16,7 @@ exports.handler = async (event, context) => {
             alphaVantageApiKey,
             fmpApiKey,
             cacheSize,
+            finnhubApiKey,
             cacheExpire
         }),
         headers: {
