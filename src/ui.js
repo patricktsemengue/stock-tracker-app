@@ -1,7 +1,7 @@
 import { addOrUpdateTransaction, getTransactionById, setEditingTransactionId, renderTransactionList, exportTransactions, importTransactions, clearAllData, deleteTransaction } from './transactionManager.js';
 import { runStrategySimulation, updateStrategyPriceForSymbol, simulateAndDrawTransactionPnlChart } from './simulator.js';
 import { searchSymbol, lookupSymbol, addSelectedSymbol, removeSelectedSymbol, renderSelectedSymbols } from './searchAndSelect.js';
-import { saveApiKeys, initializeAppConfig, analyzeStrategyWithGemini, getApiKeys , fetchFinnhubQuote } from './apiManager.js';
+import { saveApiKeys, initializeAppConfig, analyzeStrategyWithGemini, getApiKeys } from './apiManager.js';
 import { getForexRatesWithDate, saveForexRates, saveRecentlySearched, getRecentlySearched } from './storage.js';
 import { calculateStockPNL, calculateOptionPNL } from './metrics.js';
 
@@ -90,38 +90,44 @@ export const getForexRates = async () => {
     const today = new Date().toISOString().split('T')[0];
     const cachedData = getForexRatesWithDate();
 
-    if (cachedData.date === today) {
+    // Use cached data if it's from today and not empty
+    if (cachedData.date === today && Object.keys(cachedData.rates).length > 0) {
         return cachedData.rates;
     }
 
-    const fmpApiKey = getApiKeys().fmpApiKey;
-    if (!fmpApiKey) {
-        console.error('FMP API Key is not set. Cannot fetch forex rates.');
-        return null;
-    }
-
-    const conversions = {
-        'EURUSD': 'EURUSD',
-        'EURCHF': 'EURCHF'
-    };
     const rates = {};
-    const symbols = Object.keys(conversions);
-    const url = `https://financialmodelingprep.com/api/v3/quote/${symbols.join(',')}?apikey=${fmpApiKey}`;
+    // Map application symbols (e.g., EURUSD) to API symbols (e.g., EUR_USD)
+    const symbolsToFetch = {
+        EURUSD: 'EUR_USD',
+        EURCHF: 'EUR_CHF'
+    };
 
     try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`API call failed with status: ${response.status}`);
-        }
-        const data = await response.json();
-        data.forEach(item => {
-            rates[item.symbol] = item.price;
+        const promises = Object.entries(symbolsToFetch).map(async ([appSymbol, apiSymbol]) => {
+            const response = await fetch(`/api/rates?symbol=${apiSymbol}`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch rate for ${apiSymbol} from proxy.`);
+            }
+            const data = await response.json();
+            // According to swagger, API returns an array like [{"symbol":"EUR_USD","value":1.08...}]
+            if (data && data.length > 0 && data[0].value) {
+                rates[appSymbol] = data[0].value;
+            }
         });
-        saveForexRates(rates);
-        return rates;
+
+        await Promise.all(promises);
+
+        if (Object.keys(rates).length > 0) {
+            saveForexRates(rates);
+            return rates;
+        } else {
+            // Fallback to old cached data if fetching fails
+            return cachedData.rates || null;
+        }
     } catch (error) {
-        console.error('Error fetching forex rates:', error);
-        return null;
+        console.error('Error fetching forex rates via proxy:', error);
+        // On error, return old cached data if available
+        return cachedData.rates || null;
     }
 };
 
@@ -155,7 +161,11 @@ const createPnlChart = (canvasId, data, labels, breakEven) => {
                     }
                     const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
                     const zero = scales.y.getPixelForValue(0);
-                    const yZero = (zero - chartArea.top) / (chartArea.bottom - chartArea.top);
+                    let yZero = (zero - chartArea.top) / (chartArea.bottom - chartArea.top);
+
+                    // Clamp the value to the valid [0, 1] range to prevent the error
+                    yZero = Math.max(0, Math.min(1, yZero));
+
                     gradient.addColorStop(0, 'rgba(75, 192, 192, 0.2)');
                     gradient.addColorStop(yZero, 'rgba(75, 192, 192, 0.2)');
                     gradient.addColorStop(yZero, 'rgba(255, 99, 132, 0.2)');
@@ -205,8 +215,11 @@ const createPnlChart = (canvasId, data, labels, breakEven) => {
 const updatePnlChart = (slide) => {
     const quantity = parseFloat(slide.querySelector('.quantity-input').value) || 0;
     const type = slide.dataset.type;
-    const strikePrice = activeQuoteData.current;
     const canvasId = slide.querySelector('canvas').id;
+    
+    let strikePrice = activeQuoteData.current; // Default strike for range calculation
+    
+    if(strikePrice === null) return; 
 
     const range = strikePrice * 0.5;
     const labels = Array.from({ length: 51 }, (_, i) => (strikePrice - range + (i * range / 25)).toFixed(2));
@@ -219,6 +232,8 @@ const updatePnlChart = (slide) => {
         pnlData = labels.map(price => calculateStockPNL(parseFloat(price), transaction));
         breakEven = transactionPrice;
     } else {
+        // For options, the strike price is read from its own input
+        strikePrice = parseFloat(slide.querySelector('.strike-price-input').value) || activeQuoteData.current;
         const premium = parseFloat(slide.querySelector('.premium-input').value) || strikePrice * 0.05;
         let transaction;
         if (type === 'Sell Call') {
@@ -238,6 +253,13 @@ const updateDiscoveryCardMetrics = (slide) => {
     const quantity = parseFloat(slide.querySelector('.quantity-input').value) || 0;
     const type = slide.dataset.type;
     const price = activeQuoteData.current;
+
+    if(price === null) {
+        slide.querySelector('.metric-cash').textContent = 'N/A';
+        slide.querySelector('.metric-loss').textContent = 'N/A';
+        slide.querySelector('.metric-breakeven').textContent = 'N/A';
+        return;
+    };
     
     let cashImpact = 0, potentialLoss = 'N/A', breakEven = 'N/A';
     
@@ -247,23 +269,31 @@ const updateDiscoveryCardMetrics = (slide) => {
         potentialLoss = transactionPrice * quantity;
         breakEven = transactionPrice;
     } else if (type === 'Sell Call') {
-        const premium = parseFloat(slide.querySelector('.premium-input').value) || price * 0.05;
+        const strikePrice = parseFloat(slide.querySelector('.strike-price-input').value) || price;
+        const premium = parseFloat(slide.querySelector('.premium-input').value) || strikePrice * 0.05;
         cashImpact = premium * 100 * quantity;
         potentialLoss = 'Unlimited';
-        breakEven = price + premium;
+        breakEven = strikePrice + premium;
     } else if (type === 'Sell Put') {
-        const premium = parseFloat(slide.querySelector('.premium-input').value) || price * 0.05;
+        const strikePrice = parseFloat(slide.querySelector('.strike-price-input').value) || price;
+        const premium = parseFloat(slide.querySelector('.premium-input').value) || strikePrice * 0.05;
         cashImpact = premium * 100 * quantity;
-        potentialLoss = (price - premium) * 100 * quantity;
-        breakEven = price - premium;
+        potentialLoss = (strikePrice - premium) * 100 * quantity;
+        breakEven = strikePrice - premium;
     }
 
     const cashMetric = slide.querySelector('.metric-cash');
     const lossMetric = slide.querySelector('.metric-loss');
     
-    cashMetric.textContent = `${cashImpact >= 0 ? '+' : ''}${cashImpact.toFixed(2)}`;
+    if (type === 'Buy Stock') {
+        cashMetric.textContent = `${Math.abs(cashImpact).toFixed(2)}`;
+    } else {
+        cashMetric.textContent = `${cashImpact.toFixed(2)}`;
+    }
+    
     cashMetric.classList.toggle('text-logo-green', cashImpact >= 0);
     cashMetric.classList.toggle('text-logo-red', cashImpact < 0);
+
 
     lossMetric.textContent = typeof potentialLoss === 'string' ? potentialLoss : potentialLoss.toFixed(2);
     lossMetric.classList.toggle('text-logo-red', potentialLoss === 'Unlimited' || potentialLoss > 0);
@@ -274,19 +304,38 @@ const updateDiscoveryCardMetrics = (slide) => {
 };
 
 const renderDiscoveryCardContent = (symbol, name, quote) => {
-    const changeColor = quote.change >= 0 ? 'text-logo-green' : 'text-logo-red';
+    const priceDisplay = quote.current ? `$${quote.current.toFixed(2)}` : 'N/A';
+    
+    let detailsHtml;
+    // Conditionally render the OHLC section based on available data
+    if (quote.open !== null && quote.high !== null && quote.low !== null) {
+        const open = `$${quote.open.toFixed(2)}`;
+        const high = `$${quote.high.toFixed(2)}`;
+        const low = `$${quote.low.toFixed(2)}`;
+        detailsHtml = `
+            <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm text-center">
+                <div><p class="text-gray-400">Open</p><p class="font-semibold text-gray-700">${open}</p></div>
+                <div><p class="text-gray-400">High</p><p class="font-semibold text-gray-700">${high}</p></div>
+                <div><p class="text-gray-400">Low</p><p class="font-semibold text-gray-700">${low}</p></div>
+                <div><p class="text-gray-400">Last Price</p><p class="font-semibold text-gray-700">${priceDisplay}</p></div>
+            </div>
+        `;
+    } else {
+        // Render a simplified view if only the last price is available
+        detailsHtml = `
+            <div class="mt-4 text-sm text-center">
+                <p class="text-gray-500">Detailed OHLC data not available for this source.</p>
+            </div>
+        `;
+    }
+
     return `
         <div class="border-b pb-4">
             <div class="flex justify-between items-center">
                 <div><h2 class="text-3xl font-bold text-gray-800">${symbol}</h2><p class="text-gray-500">${name}</p></div>
-                <div class="text-right"><p class="text-3xl font-bold text-logo-primary">$${quote.current.toFixed(2)}</p><p class="text-sm font-semibold ${changeColor}">${quote.change.toFixed(2)} (${quote.percent_change.toFixed(2)}%)</p></div>
+                <div class="text-right"><p class="text-3xl font-bold text-logo-primary">${priceDisplay}</p></div>
             </div>
-            <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm text-center">
-                <div><p class="text-gray-400">Open</p><p class="font-semibold text-gray-700">$${quote.open.toFixed(2)}</p></div>
-                <div><p class="text-gray-400">High</p><p class="font-semibold text-gray-700">$${quote.high.toFixed(2)}</p></div>
-                <div><p class="text-gray-400">Low</p><p class="font-semibold text-gray-700">$${quote.low.toFixed(2)}</p></div>
-                <div><p class="text-gray-400">Prev. Close</p><p class="font-semibold text-gray-700">$${quote.previous_close.toFixed(2)}</p></div>
-            </div>
+            ${detailsHtml}
         </div>
         <div class="relative">
             <div id="discovery-carousel-wrapper"></div>
@@ -300,28 +349,29 @@ export const showDiscoveryCard = async (symbol, name) => {
     discoveryCardModal.classList.remove('hidden');
     discoveryCardModal.classList.add('flex');
 
+    // Get the full data object from the "recently searched" cache
     const cachedSymbol = getRecentlySearched().find(s => s.symbol === symbol);
 
-    if (cachedSymbol && cachedSymbol.price) {
-        const tempQuote = { current: cachedSymbol.price, change: 0, percent_change: 0, open: 0, high: 0, low: 0, previous_close: 0 };
-        discoveryCardContent.innerHTML = renderDiscoveryCardContent(symbol, name, tempQuote);
-    } else {
-        discoveryCardContent.innerHTML = `<p class="text-center">Fetching real-time data for ${symbol}...</p>`;
-    }
-
-    const quote = await fetchFinnhubQuote(symbol);
-    if (!quote) {
-        if (!cachedSymbol) {
-            discoveryCardContent.innerHTML = `<p class="text-center text-logo-red">Could not fetch data for ${symbol}. Please check your API key or the symbol.</p>`;
-        }
+    // If the symbol isn't in the cache for some reason, show an error.
+    if (!cachedSymbol || !cachedSymbol.quote) {
+        discoveryCardContent.innerHTML = `<p class="text-center text-logo-red">Could not find cached data for ${symbol}.</p>`;
         return;
     }
     
-    activeQuoteData = quote;
-    saveRecentlySearched(symbol, name, quote.current);
-    discoveryCardContent.innerHTML = renderDiscoveryCardContent(symbol, name, quote);
+    // The entire quote object is retrieved from the cache. No API call is made.
+    const quote = cachedSymbol.quote;
 
+    activeQuoteData = quote;
+    discoveryCardContent.innerHTML = renderDiscoveryCardContent(symbol, name, quote);
+    
     const carouselWrapper = document.getElementById('discovery-carousel-wrapper');
+    carouselWrapper.innerHTML = ''; 
+
+    if (activeQuoteData.current === null) {
+        carouselWrapper.innerHTML = `<p class="text-center text-gray-500 mt-4">Price data not available, cannot simulate strategies.</p>`;
+        return;
+    }
+
     const slidesData = [
         { type: 'Buy Stock', color: 'text-logo-blue', chartId: 'pnlChartStock' },
         { type: 'Sell Call', color: 'text-logo-green', chartId: 'pnlChartCall' },
@@ -332,21 +382,36 @@ export const showDiscoveryCard = async (symbol, name) => {
         const slide = document.createElement('div');
         slide.className = 'carousel-slide';
         slide.dataset.type = slideData.type;
+        
+        const cashMetricLabel = slideData.type === 'Buy Stock' ? 'Invested Cash' : 'Premium Income';
+        const defaultQuantity = slideData.type === 'Buy Stock' ? 100 : 1;
+        const currentPrice = activeQuoteData.current;
 
         let editableField = '';
         if (slideData.type === 'Buy Stock') {
-            editableField = `<div><label class="block text-sm font-medium text-gray-600 mb-1">Transaction Price</label><input type="number" class="w-full p-2 border border-gray-300 rounded-md transaction-price-input" value="${activeQuoteData.current.toFixed(2)}"></div>`;
+            editableField = `<div><label class="block text-sm font-medium text-gray-600 mb-1">Transaction Price</label><input type="number" class="w-full p-2 border border-gray-300 rounded-md transaction-price-input" value="${currentPrice.toFixed(2)}"></div>`;
         } else {
-            editableField = `<div><label class="block text-sm font-medium text-gray-600 mb-1">Premium</label><input type="number" class="w-full p-2 border border-gray-300 rounded-md premium-input" value="${(activeQuoteData.current * 0.05).toFixed(2)}"></div>`;
+            let defaultStrike = currentPrice;
+            if (slideData.type === 'Sell Call') {
+                defaultStrike = currentPrice * 0.90; // Strike = price - 10%
+            } else if (slideData.type === 'Sell Put') {
+                defaultStrike = currentPrice * 1.10; // Strike = price + 10%
+            }
+            const defaultPremium = defaultStrike * 0.05;
+
+            editableField = `
+                <div><label class="block text-sm font-medium text-gray-600 mb-1">Strike Price</label><input type="number" class="w-full p-2 border border-gray-300 rounded-md strike-price-input" value="${defaultStrike.toFixed(2)}"></div>
+                <div><label class="block text-sm font-medium text-gray-600 mb-1">Premium</label><input type="number" class="w-full p-2 border border-gray-300 rounded-md premium-input" value="${defaultPremium.toFixed(2)}"></div>
+            `;
         }
 
         slide.innerHTML = `
             <div class="space-y-4">
                 <h3 class="text-xl font-bold text-center ${slideData.color}">${slideData.type}</h3>
-                <div><label class="block text-sm font-medium text-gray-600 mb-1">Quantity</label><input type="number" class="w-full p-2 border border-gray-300 rounded-md quantity-input" value="100"></div>
+                <div><label class="block text-sm font-medium text-gray-600 mb-1">Quantity</label><input type="number" class="w-full p-2 border border-gray-300 rounded-md quantity-input" value="${defaultQuantity}"></div>
                 ${editableField}
                 <div class="grid grid-cols-3 gap-3 text-center">
-                    <div><p class="text-xs text-gray-500">Cash Impact</p><p class="font-bold text-base metric-cash">--</p></div>
+                    <div><p class="text-xs text-gray-500">${cashMetricLabel}</p><p class="font-bold text-base metric-cash">--</p></div>
                     <div><p class="text-xs text-gray-500">Potential Loss</p><p class="font-bold text-base metric-loss">--</p></div>
                     <div><p class="text-xs text-gray-500">Break-even</p><p class="font-bold text-base metric-breakeven">--</p></div>
                 </div>
@@ -370,7 +435,7 @@ export const showDiscoveryCard = async (symbol, name) => {
     document.getElementById('discovery-prevBtn').addEventListener('click', () => { currentSlide = (currentSlide - 1 + slides.length) % slides.length; showSlide(currentSlide); });
     
     carouselWrapper.addEventListener('input', (e) => {
-        if (e.target.classList.contains('quantity-input') || e.target.classList.contains('transaction-price-input') || e.target.classList.contains('premium-input')) {
+        if (e.target.classList.contains('quantity-input') || e.target.classList.contains('transaction-price-input') || e.target.classList.contains('premium-input') || e.target.classList.contains('strike-price-input')) {
             updateDiscoveryCardMetrics(e.target.closest('.carousel-slide'));
         }
     });
@@ -390,7 +455,7 @@ export const showDiscoveryCard = async (symbol, name) => {
                 document.getElementById('stock-price').value = slide.querySelector('.transaction-price-input').value;
             } else {
                 document.getElementById('option-premium').value = slide.querySelector('.premium-input').value;
-                document.getElementById('option-strike').value = activeQuoteData.current.toFixed(2);
+                document.getElementById('option-strike').value = slide.querySelector('.strike-price-input').value;
             }
 
             discoveryCardModal.classList.add('hidden');
@@ -403,6 +468,9 @@ export const showDiscoveryCard = async (symbol, name) => {
 
 // --- Event Listeners and DOM Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
+    // Wake up the backend API on load, but don't block the app
+    fetch('/api/ping').catch(err => console.log('API service is starting...'));
+
     const addTransactionFab = document.getElementById('add-transaction-fab');
     const addTransactionModal = document.getElementById('add-transaction-modal');
     const closeTransactionModalBtn = document.getElementById('close-transaction-modal');
@@ -513,8 +581,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (resultDiv) {
             const symbol = resultDiv.dataset.symbol;
             const name = resultDiv.dataset.name;
-            const price = resultDiv.dataset.price;
-            addSelectedSymbol(symbol, name, price ? parseFloat(price) : null);
+            const quote = JSON.parse(resultDiv.dataset.quote);
+            addSelectedSymbol(symbol, name, quote); 
             searchResultsContainer.innerHTML = '';
             symbolSearchInput.value = '';
         }
@@ -538,9 +606,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     transactionSymbolSearchResults.addEventListener('click', (e) => {
         const resultDiv = e.target.closest('div[data-symbol]');
         if (resultDiv) {
-            transactionSymbolInput.value = resultDiv.dataset.symbol;
-            transactionNameInput.value = resultDiv.dataset.name;
-            addSelectedSymbol(resultDiv.dataset.symbol, resultDiv.dataset.name, resultDiv.dataset.price ? parseFloat(resultDiv.dataset.price) : null);
+            const symbol = resultDiv.dataset.symbol;
+            const name = resultDiv.dataset.name;
+            const quote = JSON.parse(resultDiv.dataset.quote);
+
+            // Populate the form fields
+            transactionSymbolInput.value = symbol;
+            transactionNameInput.value = name;
+
+            // Call with option to NOT show the card
+            addSelectedSymbol(symbol, name, quote, { showCard: false });
+            
             transactionSymbolSearchResults.innerHTML = '';
         }
     });

@@ -96,8 +96,9 @@ body {
 }
 
 .collapsible-content.expanded {
-    max-height: 500px;
+    max-height: 700px; /* Increased height */
     padding-top: 1rem;
+    overflow-y: auto; /* Added scroll for overflow */
 }
 
 .toast-message {

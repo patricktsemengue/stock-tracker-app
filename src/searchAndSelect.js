@@ -1,4 +1,3 @@
-import { getApiKeys } from './apiManager.js';
 import { getTransactions, getRecentlySearched, saveRecentlySearched } from './storage.js';
 import { showDiscoveryCard } from './ui.js';
 
@@ -15,100 +14,129 @@ const performSearch = async (query, resultsContainer) => {
 
     // 1. Search in recently searched cache
     const recentlySearched = getRecentlySearched();
-    const cachedMatches = recentlySearched.filter(s => s.symbol.toUpperCase().includes(upperCaseQuery));
+    const cachedMatches = recentlySearched.filter(s => s.symbol.toUpperCase().includes(upperCaseQuery) || (s.name && s.name.toUpperCase().includes(upperCaseQuery)));
     if (cachedMatches.length > 0) {
-        resultsContainer.innerHTML = cachedMatches.map(match => `
-            <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" data-symbol="${match.symbol}" data-name="${match.name}" data-price="${match.price}">
-                <span class="font-bold text-gray-800">${match.symbol}</span>
-                <span class="text-gray-600">- ${match.name}</span>
-                <span class="text-sm text-gray-400 ml-auto">(Recent)</span>
+        resultsContainer.innerHTML = cachedMatches.map(match => {
+            const price = match.quote ? match.quote.current : null;
+            return `
+            <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" data-symbol="${match.symbol}" data-name="${match.name}" data-quote='${JSON.stringify(match.quote)}'>
+                <div class="flex flex-col flex-grow">
+                    <div class="flex items-baseline gap-2">
+                        <span class="font-bold text-gray-800">${match.symbol}</span>
+                        <span class="text-gray-600 truncate">${match.name}</span>
+                    </div>
+                    <div class="flex items-baseline gap-2 text-xs text-gray-500">
+                        ${price ? `<span>Price: ${price.toFixed(2)}</span>` : ''}
+                    </div>
+                </div>
+                <span class="text-sm text-gray-400 ml-auto flex-shrink-0">(Recent)</span>
             </div>
-        `).join('');
+            `
+        }).join('');
         return;
     }
-
+/*
     // 2. Search Local Transactions
     const transactions = getTransactions();
-    const localMatches = transactions.filter(t => t.symbol.toUpperCase().includes(upperCaseQuery) && t.name && t.name.trim() !== '');
+    const localMatches = transactions.filter(t => (t.symbol.toUpperCase().includes(upperCaseQuery) || (t.name && t.name.toUpperCase().includes(upperCaseQuery))) && t.name && t.name.trim() !== '');
     const uniqueLocalMatches = [...new Map(localMatches.map(item => [item.symbol, item])).values()];
     if (uniqueLocalMatches.length > 0) {
         resultsContainer.innerHTML = uniqueLocalMatches.map(match => `
-            <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" data-symbol="${match.symbol}" data-name="${match.name}">
-                <span class="font-bold text-gray-800">${match.symbol}</span>
-                <span class="text-gray-600">- ${match.name}</span>
-                <span class="text-sm text-gray-400 ml-auto">(Existing)</span>
+             <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" data-symbol="${match.symbol}" data-name="${match.name}">
+                <div class="flex flex-col flex-grow">
+                     <div class="flex items-baseline gap-2">
+                        <span class="font-bold text-gray-800">${match.symbol}</span>
+                        <span class="text-gray-600 truncate">${match.name}</span>
+                    </div>
+                </div>
+                <span class="text-sm text-gray-400 ml-auto flex-shrink-0">(Existing)</span>
             </div>
         `).join('');
         return;
     }
-
-    const keys = getApiKeys();
-    let resultsFound = false;
-
-    // 3. Search Finnhub API
-    if (keys.finnhubApiKey) {
-        resultsContainer.innerHTML = `<p class="text-gray-500 italic">Searching via Finnhub...</p>`;
-        try {
-            const response = await fetch(`https://finnhub.io/api/v1/search?q=${query}&token=${keys.finnhubApiKey}`);
-            const data = await response.json();
-            if (data.result && data.result.length > 0) {
-                resultsContainer.innerHTML = data.result.map(match => `
-                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" data-symbol="${match.symbol}" data-name="${match.description}">
-                        <span class="font-bold text-gray-800">${match.symbol}</span> <span class="text-gray-600">- ${match.description}</span>
-                    </div>`).join('');
-                resultsFound = true;
-            }
-        } catch (error) { console.error('Error during Finnhub symbol search:', error); }
-    }
-    
-    if (resultsFound) return;
-
-    // 4. Fallback to FMP
-    if (keys.fmpApiKey) {
-        resultsContainer.innerHTML = `<p class="text-gray-500 italic">Finnhub failed. Trying FMP...</p>`;
-        try {
-            const response = await fetch(`https://financialmodelingprep.com/api/v3/search?query=${query}&limit=10&apikey=${keys.fmpApiKey}`);
-            const data = await response.json();
-            if (data && data.length > 0) {
-                resultsContainer.innerHTML = data.map(match => `
-                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" data-symbol="${match.symbol}" data-name="${match.name}">
-                        <span class="font-bold text-gray-800">${match.symbol}</span> <span class="text-gray-600">- ${match.name}</span> <span class="text-sm text-gray-400 ml-auto">${match.exchangeShortName}</span>
-                    </div>`).join('');
-                resultsFound = true;
-            }
-        } catch (error) {
-            console.error('Error during FMP symbol search:', error);
+*/
+    // 3. Fallback to customized API sequentially
+    try {
+        //const encodedQuery = encodeURIComponent(query + '%');
+        const encodedQuery = encodeURIComponent(query);
+        let apiResults = [];
+        
+        // 3a. By Symbol
+        resultsContainer.innerHTML = `<p class="text-gray-500 italic">Searching by symbol...</p>`;
+        let response = await fetch(`/api/search?query=${encodedQuery}&by=symbol`);
+        if(response.ok) apiResults = await response.json();
+/*
+        // 3b. By Name (if no symbol results)
+        if (!apiResults || apiResults.length === 0) {
+            resultsContainer.innerHTML = `<p class="text-gray-500 italic">No symbol match. Searching by name...</p>`;
+            response = await fetch(`/api/search?query=${encodedQuery}&by=name`);
+            if(response.ok) apiResults = await response.json();
         }
-    }
-
-    if (resultsFound) return;
-
-    // 5. Fallback to Alpha Vantage
-    if (keys.alphaVantageApiKey) {
-        resultsContainer.innerHTML = `<p class="text-gray-500 italic">FMP failed. Trying Alpha Vantage...</p>`;
-        try {
-            const response = await fetch(`https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${query}&apikey=${keys.alphaVantageApiKey}`);
-            const data = await response.json();
-            if (data.bestMatches && data.bestMatches.length > 0) {
-                resultsContainer.innerHTML = data.bestMatches.map(match => `
-                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" data-symbol="${match['1. symbol']}" data-name="${match['2. name']}">
-                        <span class="font-bold text-gray-800">${match['1. symbol']}</span> <span class="text-gray-600">- ${match['2. name']}</span> <span class="text-sm text-gray-400 ml-auto">${match['4. region']}</span>
-                    </div>`).join('');
-                resultsFound = true;
-            } else if (data.Note) {
-                 resultsContainer.innerHTML = `<p class="text-logo-red text-sm">${data.Note}</p>`; // API limit reached
-                 return;
-            }
-        } catch (error) {
-            console.error('Error during Alpha Vantage symbol search:', error);
+*/
+        // 3c. By ISIN (if no name results)
+        if (!apiResults || apiResults.length === 0) {
+            resultsContainer.innerHTML = `<p class="text-gray-500 italic">No name match. Searching by ISIN...</p>`;
+            response = await fetch(`/api/search?query=${encodedQuery}&by=isin`);
+            if(response.ok) apiResults = await response.json();
         }
-    }
+        
+        // Process and display results
+        if (apiResults && apiResults.length > 0) {
+            const uniqueResults = [...new Map(apiResults.map(item => [item.data.Symbol, item])).values()];
 
-    if (!resultsFound) {
-        resultsContainer.innerHTML = `<p class="text-gray-500 italic">No matches found for "${query}". Please check your API keys.</p>`;
+            resultsContainer.innerHTML = uniqueResults.map(match => {
+                const stock = match.data;
+                const getValue = (keys) => {
+                    for (const key of keys) {
+                        const actualKey = Object.keys(stock).find(k => k.toLowerCase() === key.toLowerCase());
+                        if (stock[actualKey]) {
+                            let value = stock[actualKey];
+                            if (typeof value === 'string') {
+                                value = value.replace('$', '').trim();
+                            }
+                            const parsedValue = parseFloat(value);
+                            return !isNaN(parsedValue) ? parsedValue : null;
+                        }
+                    }
+                    return null;
+                };
+
+                const quote = {
+                    current: getValue(['last Price', 'Last Sale']),
+                    open: getValue(['Open Price']),
+                    high: getValue(['High Price']),
+                    low: getValue(['low Price'])
+                };
+                
+                const lastSale = quote.current;
+                const currency = stock.Currency || '';
+
+                // Attach the full quote object to the element's data-quote attribute
+                return `
+                <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" 
+                     data-symbol="${stock.Symbol}" 
+                     data-name="${stock.Name}" 
+                     data-quote='${JSON.stringify(quote)}'>
+                    <div class="flex flex-col flex-grow min-w-0">
+                        <div class="flex items-baseline gap-2">
+                            <span class="font-bold text-gray-800">${stock.Symbol}</span>
+                            <span class="text-gray-600 truncate" title="${stock.Name}">${stock.Name}</span>
+                        </div>
+                        <div class="flex items-baseline gap-2 text-xs text-gray-500 mt-1">
+                            ${lastSale ? `<span>${lastSale.toFixed(2)} ${currency}</span>` : 'Price N/A'}
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        } else {
+            resultsContainer.innerHTML = `<p class="text-gray-500 italic">No matches found for "${query}".</p>`;
+        }
+    } catch (error) {
+        console.error('Error during API search:', error);
+        resultsContainer.innerHTML = `<p class="text-logo-red italic">An error occurred during search.</p>`;
     }
 };
-
 
 export const searchSymbol = (query) => {
     clearTimeout(searchTimeout);
@@ -124,13 +152,19 @@ export const lookupSymbol = (query) => {
     }, 500);
 };
 
-export const addSelectedSymbol = (symbol, name, price) => {
-    // Save to cache immediately on selection
-    if (price) {
-        saveRecentlySearched(symbol, name, price);
+export const addSelectedSymbol = (symbol, name, quote, options = {}) => {
+    const { showCard = true } = options;
+
+    // Only cache the symbol if a valid quote object is provided
+    if (quote) {
+        saveRecentlySearched(symbol, name, quote);
     }
+    
     renderSelectedSymbols();
-    showDiscoveryCard(symbol, name);
+    
+    if (showCard) {
+        showDiscoveryCard(symbol, name);
+    }
 };
 
 export const removeSelectedSymbol = (symbolToRemove) => {
@@ -151,11 +185,11 @@ export const renderSelectedSymbols = () => {
         recentlySearched.forEach(s => {
             const symbolCard = document.createElement('div');
             symbolCard.className = 'relative bg-gray-100 text-gray-800 px-4 py-2 rounded-full flex items-center gap-2 shadow-sm cursor-pointer';
-            // **FIX**: Added data attributes to the parent div for the click listener to find
             symbolCard.dataset.symbol = s.symbol;
             symbolCard.dataset.name = s.name;
             
-            const priceHTML = s.price ? `<span class="text-sm text-gray-800 font-bold">$${s.price.toFixed(2)}</span>` : '';
+            const price = s.quote ? s.quote.current : null;
+            const priceHTML = price ? `<span class="text-sm text-gray-800 font-bold">$${price.toFixed(2)}</span>` : '';
             symbolCard.innerHTML = `
                 <span class="font-semibold">${s.symbol}</span>
                 <span class="text-sm text-gray-600 truncate max-w-[100px]">${s.name}</span>

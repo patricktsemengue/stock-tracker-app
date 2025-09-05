@@ -405,7 +405,7 @@ export const renderTransactionList = async () => {
                     ${strategyButton}
                     <button data-id="${t.id}" class="delete-btn bg-logo-red text-white px-4 py-2 rounded-full shadow hover:bg-opacity-80 transition-colors text-sm font-bold">Delete</button>
                 </div>
-                <div class="mt-4"><canvas id="chart-${t.id}" class="w-full h-64"></canvas></div>
+                <div class="mt-4"><canvas id="chart-${t.id}" class="w-full h-80"></canvas></div>
             </div>
         `;
         transactionListDiv.appendChild(transactionItem);

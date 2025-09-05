@@ -2,17 +2,11 @@ import { showToast, showMessageBox } from './ui.js';
 
 export let appConfig = {
     geminiApiKey: '',
-    alphaVantageApiKey: '',
-    fmpApiKey: '',
-    finnhubApiKey: '',
-    cacheSize: 10, // Default cache size
-    cacheExpire: 60 // Default expiration in minutes
+    cacheSize: 10,
+    cacheExpire: 60
 };
 
 const geminiApiKeyInput = document.getElementById('gemini-api-key-input');
-const alphaVantageApiKeyInput = document.getElementById('alpha-vantage-api-key-input');
-const fmpApiKeyInput = document.getElementById('fmp-api-key-input');
-const finnhubApiKeyInput = document.getElementById('finnhub-api-key-input');
 
 export const initializeAppConfig = async () => {
     try {
@@ -20,20 +14,11 @@ export const initializeAppConfig = async () => {
         if (response.ok) {
             const serverConfig = await response.json();
             appConfig.geminiApiKey = serverConfig.geminiApiKey || '';
-            appConfig.alphaVantageApiKey = serverConfig.alphaVantageApiKey || '';
-            appConfig.fmpApiKey = serverConfig.fmpApiKey || '';
-            appConfig.finnhubApiKey = serverConfig.finnhubApiKey || '';
             appConfig.cacheSize = serverConfig.cacheSize || 10;
             appConfig.cacheExpire = serverConfig.cacheExpire || 60;
 
             if (appConfig.geminiApiKey)
                 document.querySelector('[data-key="gemini"]').classList.add('hidden');
-            if (appConfig.alphaVantageApiKey)
-                document.querySelector('[data-key="alpha-vantage"]').classList.add('hidden');
-            if (appConfig.fmpApiKey)
-                document.querySelector('[data-key="fmp"]').classList.add('hidden');
-            if (appConfig.finnhubApiKey)
-                document.querySelector('[data-key="finnhub"]').classList.add('hidden');
 
         } else {
             console.warn('Failed to fetch config from server. Falling back to local storage and defaults.');
@@ -42,63 +27,23 @@ export const initializeAppConfig = async () => {
         console.error('Network error fetching server config, falling back to local storage and defaults:', error);
     } finally {
         appConfig.geminiApiKey = appConfig.geminiApiKey || localStorage.getItem('geminiApiKey') || '';
-        appConfig.alphaVantageApiKey = appConfig.alphaVantageApiKey || localStorage.getItem('alphaVantageApiKey') || '';
-        appConfig.fmpApiKey = appConfig.fmpApiKey || localStorage.getItem('fmpApiKey') || '';
     }
 };
 
 export const saveApiKeys = () => {
     const geminiKey = geminiApiKeyInput.value.trim();
-    const alphaVantageKey = alphaVantageApiKeyInput.value.trim();
-    const fmpKey = fmpApiKeyInput.value.trim();
-    const finnhubKey = finnhubApiKeyInput.value.trim();
 
     if (!geminiApiKeyInput.closest('div').classList.contains('hidden'))
         localStorage.setItem('geminiApiKey', geminiKey);
-    if (!alphaVantageApiKeyInput.closest('div').classList.contains('hidden'))
-        localStorage.setItem('alphaVantageApiKey', alphaVantageKey);
-    if (!fmpApiKeyInput.closest('div').classList.contains('hidden'))
-        localStorage.setItem('fmpApiKey', fmpKey);
-    if (!finnhubApiKeyInput.closest('div').classList.contains('hidden'))
-        localStorage.setItem('finnhubApiKey', finnhubKey);
 
     appConfig.geminiApiKey = geminiKey;
-    appConfig.alphaVantageApiKey = alphaVantageKey;
-    appConfig.fmpApiKey = fmpKey;
-    appConfig.finnhubApiKey = finnhubKey;
 
     showToast('API Keys saved successfully!');
 };
 
 export const getApiKeys = () => ({
-    geminiApiKey: appConfig.geminiApiKey,
-    alphaVantageApiKey: appConfig.alphaVantageApiKey,
-    fmpApiKey: appConfig.fmpApiKey,
-    finnhubApiKey: appConfig.finnhubApiKey
+    geminiApiKey: appConfig.geminiApiKey
 });
-
-
-export const fetchFinnhubQuote = async (symbol) => {
-    if (!appConfig.finnhubApiKey) {
-        showMessageBox('Please provide API Key(s).');
-        return null;
-    }
-    const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${appConfig.finnhubApiKey}`);
-    if (!response.ok) {
-        console.error('Failed to fetch quote from Finnhub');
-        return null;
-    }
-    const data = await response.json();
-    return {
-        current: data.c,
-        change: data.d,
-        percent_change: data.dp,
-        high: data.h,
-        low: data.l,
-        open: data.o,
-        previous_close: data.pc
-    };
-};
 
 export const analyzeStrategyWithGemini = async (symbol) => {
     if (!appConfig.geminiApiKey) {

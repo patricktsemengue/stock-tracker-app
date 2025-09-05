@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results - Financial Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- Base & Variables (Copied from main app) --- */
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg-color: #ffffff;
+            --text-color: #1c2b36;
+            --secondary-text-color: #657786;
+            --border-color: #dde1e5;
+            --input-focus-shadow-color: rgba(0, 123, 255, 0.2);
+            --button-bg-color: #007bff;
+            --button-text-color: #ffffff;
+            --accent-green: #198754;
+            --accent-red: #dc3545;
+            --accent-blue: #007bff;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .dark-theme {
+            --bg-color: #121212;
+            --card-bg-color: #1e1e1e;
+            --text-color: #e0e0e0;
+            --secondary-text-color: #888888;
+            --border-color: #333333;
+            --input-focus-shadow-color: rgba(52, 152, 219, 0.2);
+            --shadow-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .inverted-theme {
+            --bg-color: #0d1a26;
+            --card-bg-color: #1a2c3d;
+            --text-color: #c0d1e1;
+            --secondary-text-color: #8196a8;
+            --border-color: #304a62;
+            --input-focus-shadow-color: rgba(26, 188, 156, 0.2);
+            --shadow-color: rgba(0, 0, 0, 0.2);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding-top: 64px;
+            padding-bottom: 48px;
+            transition: background-color 0.3s, color 0.3s, padding-top 0.4s ease, padding-bottom 0.4s ease;
+        }
+        
+        body.summary-at-top {
+            padding-top: 112px;
+            padding-bottom: 0;
+        }
+
+        /* --- Header (Copied from main app) --- */
+        .app-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 24px;
+            background-color: var(--card-bg-color);
+            border-bottom: 1px solid var(--border-color);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px var(--shadow-color);
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 20px;
+            color: var(--text-color);
+            text-decoration: none;
+        }
+        
+        /* --- Main Layout --- */
+        .main-container {
+            max-width: 900px;
+            margin: 24px auto;
+            padding: 0 24px;
+            position: relative;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 0px;
+            right: 24px;
+            background: var(--card-bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--secondary-text-color);
+            z-index: 20;
+        }
+         .close-btn:hover {
+            color: var(--text-color);
+            background-color: var(--bg-color);
+         }
+
+        .card {
+            background-color: var(--card-bg-color);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px var(--shadow-color);
+            padding: 24px;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        
+        /* --- Search Result Specific Styles --- */
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .result-header h1 {
+            font-size: 28px;
+            margin: 0;
+        }
+        .result-header .asset-ticker {
+            font-size: 20px;
+            color: var(--secondary-text-color);
+        }
+        .result-price {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .result-change {
+             font-size: 16px;
+             font-weight: 500;
+        }
+        .change-up { color: var(--accent-green); }
+        .change-down { color: var(--accent-red); }
+
+        .chart-placeholder {
+            height: 250px;
+            background-color: var(--bg-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--secondary-text-color);
+            border: 1px dashed var(--border-color);
+            margin: 24px 0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .stat h4 {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--secondary-text-color);
+            margin: 0 0 4px 0;
+        }
+        .stat p {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .action-btn-main {
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .action-btn-main.primary {
+            background-color: var(--accent-blue);
+            color: white;
+        }
+        .action-btn-main.primary:hover {
+            background-color: #0056b3;
+        }
+        .action-btn-main.secondary {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+        .action-btn-main.secondary:hover {
+            background-color: var(--border-color);
+        }
+
+        /* --- Theme Switcher (Copied from main app) --- */
+        .theme-switcher {
+            position: fixed;
+            z-index: 20;
+            bottom: 72px;
+            left: 24px;
+            background-color: var(--card-bg-color);
+            border-radius: 24px;
+            display: flex;
+            padding: 4px;
+            box-shadow: 0 2px 8px var(--shadow-color);
+            border: 1px solid var(--border-color);
+            transition: bottom 0.4s ease;
+        }
+        body.summary-at-top .theme-switcher {
+            bottom: 24px;
+        }
+        .theme-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: transparent;
+            color: var(--secondary-text-color);
+            transition: color 0.2s, background-color 0.2s;
+        }
+        .theme-btn.active {
+            background-color: var(--accent-blue);
+            color: white;
+        }
+
+        /* --- Fixed Summary Footer (Copied from main app) --- */
+        .fixed-summary-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background-color: var(--card-bg-color);
+            border-top: 1px solid var(--border-color);
+            box-shadow: 0 -2px 8px var(--shadow-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 8px 16px;
+            height: 48px;
+            box-sizing: border-box;
+            transition: transform 0.4s ease, border-radius 0.4s ease, left 0.4s ease, top 0.4s ease, bottom 0.4s ease;
+        }
+        .fixed-summary-bar.position-top {
+            bottom: auto;
+            top: 64px;
+            border-top: none;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+        .fixed-summary-bar.unpinned {
+            left: calc(100% - 120px);
+            border-radius: 24px 0 0 24px;
+        }
+         .fixed-summary-bar.position-top.unpinned {
+            border-radius: 0 0 24px 24px;
+        }
+        .summary-metrics-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            flex-grow: 1;
+            overflow: hidden;
+            white-space: nowrap;
+            transition: opacity 0.3s ease;
+        }
+        .fixed-summary-bar.unpinned .summary-metrics-container {
+            opacity: 0;
+        }
+        .summary-metric {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+        .summary-metric-title {
+            color: var(--secondary-text-color);
+        }
+        .summary-metric-value {
+            font-weight: 600;
+        }
+        .summary-metric-value.negative {
+            color: var(--accent-red);
+        }
+        .pin-btn, .position-btn {
+            background: none;
+            border: 1px solid transparent;
+            color: var(--secondary-text-color);
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: color 0.2s, background-color 0.2s, transform 0.4s ease;
+        }
+        .pin-btn:hover, .position-btn:hover {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        .fixed-summary-bar.unpinned .pin-btn {
+            transform: rotate(-90deg);
+        }
+        .fixed-summary-bar.position-top .position-btn {
+            transform: rotate(180deg);
+        }
+        .position-btn {
+            margin-left: 16px;
+        }
+        .pin-btn {
+            margin-left: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="app-header">
+        <a href="financial_app_mockup.html" class="logo">Strady</a>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <a href="../index.html" class="close-btn" aria-label="Close search results">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </a>
+        <div class="card">
+            <div class="result-header">
+                <span class="asset-ticker">AAPL</span>
+                <h1>Apple Inc.</h1>
+            </div>
+
+            <div>
+                <span class="result-price">214.29 USD</span>
+                <span class="result-change change-up">+1.24 (0.58%)</span>
+            </div>
+
+            <div class="chart-placeholder">
+                Price Chart Area
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat"><h4>Market Cap</h4><p>3.28T USD</p></div>
+                <div class="stat"><h4>P/E Ratio</h4><p>32.84</p></div>
+                <div class="stat"><h4>Volume</h4><p>52.3M</p></div>
+                <div class="stat"><h4>EPS</h4><p>6.52</p></div>
+                <div class="stat"><h4>Div/Yield</h4><p>1.00/0.47%</p></div>
+            </div>
+
+            <div class="result-actions">
+                <button class="action-btn-main primary">Add Stock Transaction</button>
+                <button class="action-btn-main secondary">Add Option Transaction</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Switcher -->
+    <div class="theme-switcher">
+        <button class="theme-btn" data-theme="light" aria-label="Light theme"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg></button>
+        <button class="theme-btn" data-theme="dark" aria-label="Dark theme"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
+        <button class="theme-btn" data-theme="inverted" aria-label="Inverted theme"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 12c0 2.8-2.2 5-5 5s-5-2.2-5-5 2.2-5 5-5 5 2.2 5 5z"></path><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"></path></svg></button>
+    </div>
+
+    <!-- Fixed Summary Footer -->
+    <footer class="fixed-summary-bar">
+        <div class="summary-metrics-container">
+            <div class="summary-metric"><span class="summary-metric-title">Invested:</span><span class="summary-metric-value">54,275.00€</span></div>
+            <div class="summary-metric"><span class="summary-metric-title">Income:</span><span class="summary-metric-value">2,909.51€</span></div>
+            <div class="summary-metric"><span class="summary-metric-title">Exposure:</span><span class="summary-metric-value negative">-37,672.35€</span></div>
+        </div>
+        <button class="position-btn" aria-label="Move summary bar position"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 13l6 6 6-6M18 11l-6-6-6 6"/></svg></button>
+        <button class="pin-btn" aria-label="Toggle summary bar"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></button>
+    </footer>
+
+    <script>
+        // Copied from main app to maintain functionality
+        document.addEventListener('DOMContentLoaded', () => {
+            const body = document.body;
+
+            // --- Theme Switcher Logic ---
+            const themeButtons = document.querySelectorAll('.theme-btn');
+            function applyTheme(theme) {
+                body.classList.remove('dark-theme', 'inverted-theme');
+                if (theme === 'dark') body.classList.add('dark-theme');
+                if (theme === 'inverted') body.classList.add('inverted-theme');
+                themeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.theme === theme));
+                localStorage.setItem('appTheme', theme);
+            }
+            const savedTheme = localStorage.getItem('appTheme') || 'light';
+            applyTheme(savedTheme);
+            themeButtons.forEach(button => button.addEventListener('click', () => applyTheme(button.dataset.theme)));
+
+            // --- Fixed Summary Bar Logic ---
+            const summaryBar = document.querySelector('.fixed-summary-bar');
+            const pinBtn = document.querySelector('.pin-btn');
+            const positionBtn = document.querySelector('.position-btn');
+
+            function setPinnedState(isPinned) {
+                summaryBar.classList.toggle('unpinned', !isPinned);
+                localStorage.setItem('summaryBarPinned', isPinned);
+            }
+            pinBtn.addEventListener('click', () => setPinnedState(summaryBar.classList.contains('unpinned')));
+            setPinnedState(localStorage.getItem('summaryBarPinned') !== 'false');
+
+            function setBarPosition(position) {
+                summaryBar.classList.toggle('position-top', position === 'top');
+                body.classList.toggle('summary-at-top', position === 'top');
+                localStorage.setItem('summaryBarPosition', position);
+            }
+            positionBtn.addEventListener('click', () => setBarPosition(summaryBar.classList.contains('position-top') ? 'bottom' : 'top'));
+            setBarPosition(localStorage.getItem('summaryBarPosition') || 'bottom');
+        });
+    </script>
+</body>
+</html>

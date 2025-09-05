@@ -36,10 +36,11 @@ export const getRecentlySearched = () => {
     return recentlySearched.filter(item => now - item.timestamp < expireTime);
 };
 
-export const saveRecentlySearched = (symbol, name, price) => {
+export const saveRecentlySearched = (symbol, name, quote) => {
     let recentlySearched = getRecentlySearched();
     const now = new Date().getTime();
-    const newItem = { symbol, name, price, timestamp: now };
+    // The new item now stores the full quote object
+    const newItem = { symbol, name, quote, timestamp: now };
     const existingIndex = recentlySearched.findIndex(item => item.symbol === symbol);
     if (existingIndex > -1) {
         recentlySearched.splice(existingIndex, 1);

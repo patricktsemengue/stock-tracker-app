@@ -5,3 +5,18 @@ functions = "netlify/functions"
 from = "/api/config"
 to = "/.netlify/functions/netlifyconfig"
 status = 200
+
+[[redirects]]
+from = "/api/search"
+to = "/.netlify/functions/search"
+status = 200
+
+[[redirects]]
+from = "/api/rates"
+to = "/.netlify/functions/rates"
+status = 200
+
+[[redirects]]
+from = "/api/ping"
+to = "/.netlify/functions/ping"
+status = 200
