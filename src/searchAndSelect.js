@@ -65,14 +65,14 @@ const performSearch = async (query, resultsContainer) => {
         resultsContainer.innerHTML = `<p class="text-gray-500 italic">Searching by symbol...</p>`;
         let response = await fetch(`/api/search?query=${encodedQuery}&by=symbol`);
         if(response.ok) apiResults = await response.json();
-/*
+
         // 3b. By Name (if no symbol results)
         if (!apiResults || apiResults.length === 0) {
             resultsContainer.innerHTML = `<p class="text-gray-500 italic">No symbol match. Searching by name...</p>`;
             response = await fetch(`/api/search?query=${encodedQuery}&by=name`);
             if(response.ok) apiResults = await response.json();
         }
-*/
+
         // 3c. By ISIN (if no name results)
         if (!apiResults || apiResults.length === 0) {
             resultsContainer.innerHTML = `<p class="text-gray-500 italic">No name match. Searching by ISIN...</p>`;
